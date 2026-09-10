@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600" viewBox="0 0 1600 1600">
+  <rect width="1600" height="1600" fill="#F8F9FC"/>
+  <g transform="translate(520 165)">
+    <circle cx="280" cy="280" r="246" fill="none" stroke="#6F4BF2" stroke-width="48" stroke-linecap="round" stroke-dasharray="1080 460" transform="rotate(-38 280 280)"/>
+    <path d="M525 117 A246 246 0 0 1 467 486" fill="none" stroke="#19C7D8" stroke-width="48" stroke-linecap="round"/>
+    <path d="M398 177H171v206h198" fill="none" stroke="#10182F" stroke-width="62" stroke-linecap="square"/>
+    <path d="M172 280h175" stroke="#10182F" stroke-width="62" stroke-linecap="square"/>
+  </g>
+  <text x="800" y="1000" text-anchor="middle" fill="#10182F" font-family="Inter, Avenir Next, Helvetica Neue, sans-serif" font-size="180" font-weight="650" letter-spacing="-7">Edith</text>
+  <text x="800" y="1095" text-anchor="middle" fill="#6B7280" font-family="Inter, Avenir Next, Helvetica Neue, sans-serif" font-size="30" letter-spacing="8">NAVIGATE WITH INTENT</text>
+</svg>

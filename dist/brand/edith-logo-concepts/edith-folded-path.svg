@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600" viewBox="0 0 1600 1600">
+  <rect width="1600" height="1600" fill="#F7FBFA"/>
+  <g transform="translate(525 190)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M430 168H108V392H430M108 280H363" stroke="#1F4DB8" stroke-width="60"/>
+    <path d="M430 168L530 68M430 392L530 492" stroke="#8BDCC9" stroke-width="34"/>
+    <circle cx="530" cy="68" r="20" fill="#8BDCC9" stroke="none"/>
+    <circle cx="530" cy="492" r="20" fill="#8BDCC9" stroke="none"/>
+  </g>
+  <text x="800" y="1000" text-anchor="middle" fill="#17305F" font-family="Inter, Avenir Next, Helvetica Neue, sans-serif" font-size="180" font-weight="650" letter-spacing="-7">Edith</text>
+  <text x="800" y="1095" text-anchor="middle" fill="#5E769B" font-family="Inter, Avenir Next, Helvetica Neue, sans-serif" font-size="30" letter-spacing="8">EVERY LINK IN REACH</text>
+</svg>

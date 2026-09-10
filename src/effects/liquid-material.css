@@ -1,0 +1,39 @@
+/* Shared by the reference demo and editing bubbles. */
+.reservoir-shine { position: absolute; inset: 7%; border-radius: 50%; background: radial-gradient(ellipse at 28% 9%, #ffffffb8 0%, #ffffff63 4%, #ffffff19 15%, transparent 43%), radial-gradient(ellipse at 73% 86%, var(--reservoir-shade, #1d36ba38) 0%, transparent 48%); filter: blur(1px); mix-blend-mode: screen; pointer-events: none; }
+.reservoir-glint { position: absolute; width: 24%; height: 10%; top: 17%; left: 20%; border-radius: 50%; transform: rotate(-27deg); background: linear-gradient(90deg, transparent, #fff9, transparent); filter: blur(1px); opacity: .78; mix-blend-mode: screen; pointer-events: none; }
+.reservoir-rim { position: absolute; inset: 4%; border: 1px solid #ffffff71; border-radius: 50%; box-shadow: inset 7px 8px 10px #ffffff42, inset -8px -10px 13px var(--reservoir-rim-shade, #142b9d32), 0 0 0 1px #ffffff16; opacity: .82; pointer-events: none; }
+.reservoir-caustic { position: absolute; width: 42%; height: 21%; right: 13%; bottom: 13%; border-radius: 50%; transform: rotate(-24deg); background: radial-gradient(ellipse, #ffffff28, transparent 68%); filter: blur(3px); mix-blend-mode: screen; pointer-events: none; }
+
+/* Opt-in pointer lighting, shared by the demo and homepage glass skins. */
+.bubble-reflective {
+  --bubble-light-x: -0.53;
+  --bubble-light-y: -0.84;
+  --bubble-light-angle: -32deg;
+  --bubble-light-distance: 0.9932;
+}
+.bubble-reflective .reservoir-shine {
+  background:
+    radial-gradient(ellipse at calc(50% + var(--bubble-light-x) * 36%) calc(50% + var(--bubble-light-y) * 36%), #ffffffb8 0%, #ffffff63 4%, #ffffff19 15%, transparent 43%),
+    radial-gradient(ellipse at calc(50% - var(--bubble-light-x) * 32%) calc(50% - var(--bubble-light-y) * 32%), var(--reservoir-shade, #1d36ba38), transparent 48%);
+}
+.bubble-reflective .reservoir-glint {
+  left: calc(50% + var(--bubble-light-x) * 32%);
+  top: calc(50% + var(--bubble-light-y) * 32%);
+  width: calc(13% + var(--bubble-light-distance) * 11%);
+  height: calc(13% - var(--bubble-light-distance) * 3%);
+  transform: translate(-50%, -50%) rotate(var(--bubble-light-angle));
+  background: radial-gradient(ellipse, #fffc, #ffffff66 30%, transparent 72%);
+}
+.bubble-reflective .reservoir-rim {
+  box-shadow:
+    inset calc(var(--bubble-light-x) * -11px) calc(var(--bubble-light-y) * -11px) 10px #ffffff42,
+    inset calc(var(--bubble-light-x) * 13px) calc(var(--bubble-light-y) * 13px) 13px var(--reservoir-rim-shade, #142b9d32),
+    0 0 0 1px #ffffff16;
+}
+.bubble-reflective .reservoir-caustic {
+  right: auto;
+  bottom: auto;
+  left: calc(50% - var(--bubble-light-x) * 27%);
+  top: calc(50% - var(--bubble-light-y) * 27%);
+  transform: translate(-50%, -50%) rotate(var(--bubble-light-angle));
+}

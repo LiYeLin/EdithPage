@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600" viewBox="0 0 1600 1600">
+  <rect width="1600" height="1600" fill="#FBF8ED"/>
+  <g transform="translate(520 190)">
+    <path d="M54 82h410L338 280l126 198H54l126-198z" fill="#151515"/>
+    <path d="M126 154h230l-95 126 95 126H126l95-126z" fill="#FBF8ED"/>
+    <path d="M548 52l20 45 49 12-49 12-20 45-20-45-49-12 49-12z" fill="#B7D93A"/>
+  </g>
+  <text x="800" y="1000" text-anchor="middle" fill="#151515" font-family="Inter, Avenir Next, Helvetica Neue, sans-serif" font-size="180" font-weight="650" letter-spacing="-7">Edith</text>
+  <text x="800" y="1095" text-anchor="middle" fill="#6F7448" font-family="Inter, Avenir Next, Helvetica Neue, sans-serif" font-size="30" letter-spacing="8">YOUR NORTH STAR ONLINE</text>
+</svg>

@@ -1,6 +1,7 @@
 import { Plus, Settings2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { FrequentSites } from './components/FrequentSites'
+import { BubbleFloatProvider } from './components/BubbleFloatProvider'
 import { ModulePanel } from './components/ModulePanel'
 import { SearchDeck } from './components/SearchDeck'
 import { SettingsDrawer } from './components/SettingsDrawer'
@@ -322,24 +323,26 @@ function App() {
           onVisit={recordVisit}
         />
 
-        <div className="module-grid" id="modules">
-          {config.modules.map((module, index) => (
-            <ModulePanel
-              module={module}
-              revealSite={revealSite?.moduleId === module.id ? revealSite : null}
-              index={index}
-              isEditing={editing}
-              onEnterEditMode={enterEditMode}
-              onAddSite={openAddSite}
-              onEditSite={openEditSite}
-              onEditModule={openEditModule}
-              onRemoveSite={removeSite}
-              onRemoveModule={removeModule}
-              onVisit={recordVisit}
-              key={module.id}
-            />
-          ))}
-        </div>
+        <BubbleFloatProvider blocked={editing || dragging || settingsOpen}>
+          <div className="module-grid" id="modules">
+            {config.modules.map((module, index) => (
+              <ModulePanel
+                module={module}
+                revealSite={revealSite?.moduleId === module.id ? revealSite : null}
+                index={index}
+                isEditing={editing}
+                onEnterEditMode={enterEditMode}
+                onAddSite={openAddSite}
+                onEditSite={openEditSite}
+                onEditModule={openEditModule}
+                onRemoveSite={removeSite}
+                onRemoveModule={removeModule}
+                onVisit={recordVisit}
+                key={module.id}
+              />
+            ))}
+          </div>
+        </BubbleFloatProvider>
       </main>
 
       {undoAction ? (

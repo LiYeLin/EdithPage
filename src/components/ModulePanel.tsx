@@ -1,4 +1,5 @@
 import { LiquidBubbleSkin } from './LiquidBubbleSkin'
+import { useBubbleFloat } from '../hooks/useBubbleFloat'
 import { useDndContext, useDroppable } from '@dnd-kit/core'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -53,6 +54,7 @@ export function ModulePanel({
   const [activePage, setActivePage] = useState(0)
   const viewportWidth = useViewportWidth()
   const reducedMotion = useMotionPreference()
+  const { floatRef, floatStyle } = useBubbleFloat(module.id)
   const liquidSkin = useBubbleLiquid(!reducedMotion)
   const { longPressProps, consumeLongPressClick } = useLongPress(onEnterEditMode)
   const layout = useMemo(
@@ -119,32 +121,33 @@ export function ModulePanel({
         '--bubble-icon-size': `${layout.tile.icon}px`,
       } as CSSProperties}
     >
-      <header className="module-header">
-        <button
-          {...longPressProps}
-          className={`module-title ${isEditing ? 'is-editable' : ''}`}
-          type="button"
-          onClick={handleModuleClick}
-          onContextMenu={(event) => event.preventDefault()}
-          aria-label={isEditing ? `编辑分类 ${module.title}` : `${module.title}，长按进入编辑模式`}
-        >
-          <span className="module-dot" />
-          <h2>{module.title}</h2>
-          <span className="module-count">{module.sites.length}</span>
-        </button>
-        {isEditing && (
-          <div className="module-controls">
-            <button
-              className="remove-module"
-              type="button"
-              onClick={() => onRemoveModule(module.id)}
-              aria-label={`删除分类 ${module.title} 及其中的 ${module.sites.length} 个站点`}
-            >
-              <X size={13} strokeWidth={2.6} />
-            </button>
-          </div>
-        )}
-      </header>
+      <motion.div className="bubble-float-body" ref={floatRef} style={floatStyle}>
+        <header className="module-header">
+          <button
+            {...longPressProps}
+            className={`module-title ${isEditing ? 'is-editable' : ''}`}
+            type="button"
+            onClick={handleModuleClick}
+            onContextMenu={(event) => event.preventDefault()}
+            aria-label={isEditing ? `编辑分类 ${module.title}` : `${module.title}，长按进入编辑模式`}
+          >
+            <span className="module-dot" />
+            <h2>{module.title}</h2>
+            <span className="module-count">{module.sites.length}</span>
+          </button>
+          {isEditing && (
+            <div className="module-controls">
+              <button
+                className="remove-module"
+                type="button"
+                onClick={() => onRemoveModule(module.id)}
+                aria-label={`删除分类 ${module.title} 及其中的 ${module.sites.length} 个站点`}
+              >
+                <X size={13} strokeWidth={2.6} />
+              </button>
+            </div>
+          )}
+        </header>
 
       <motion.div
         layout={!reducedMotion}
@@ -210,7 +213,7 @@ export function ModulePanel({
             )
           })}
         </div>
-      </motion.div>
+        </motion.div>
 
       {pageCount > 1 && (
         <div className="bubble-pagination module-controls" aria-label={`${module.title}翻页`}>
@@ -223,6 +226,7 @@ export function ModulePanel({
           </button>
         </div>
       )}
+      </motion.div>
     </motion.section>
   )
 }

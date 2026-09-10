@@ -1168,6 +1168,8 @@ main { padding: clamp(20px, calc(37vh - 245px), 300px) 0 26px; }
 
 .module-panel.bubble-panel:hover { transform: none; box-shadow: none; }
 
+.bubble-float-body { width: 100%; }
+
 .bubble-panel .module-header {
   height: 32px;
   padding: 0 12px 8px;

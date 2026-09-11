@@ -4,9 +4,9 @@ import type { SearchEngine } from '../types'
 
 // Fixed catalog: no runtime favicon service or network-dependent logo lookup.
 const engineLogos: Record<string, string> = {
-  google: '/search-engines/google.png',
-  perplexity: '/search-engines/perplexity.png',
-  baidu: '/search-engines/baidu.png',
+  google: '/site-icons/google.svg',
+  perplexity: '/site-icons/perplexity.svg',
+  baidu: '/site-icons/baidu.svg',
 }
 
 export function SearchEnginePicker({ engine, onChange }: {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { getSiteIconFallbackText, getSiteIconSources } from '../data/siteIcons'
 import { getDomain } from '../utils'
 
 type SiteIconProps = {
@@ -7,18 +8,27 @@ type SiteIconProps = {
   size?: number
 }
 
+function SiteIconImage({ domain, name, size }: { domain: string; name: string; size: number }) {
+  const sources = useMemo(() => getSiteIconSources(domain), [domain])
+  const [sourceIndex, setSourceIndex] = useState(0)
+  const src = sources[sourceIndex]
+  const fallbackText = getSiteIconFallbackText(domain, name)
+
+  return src ? (
+    <img key={src} src={src} alt="" width={size} height={size}
+      onError={() => setSourceIndex((index) => index + 1)} />
+  ) : (
+    <span className={`site-icon-fallback${fallbackText === 'fast.ai' ? ' site-icon-wordmark' : ''}`}>{fallbackText}</span>
+  )
+}
+
 export function SiteIcon({ url, name, size = 40 }: SiteIconProps) {
-  const [failed, setFailed] = useState(false)
-  const domain = useMemo(() => getDomain(url), [url])
-  const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`
+  const domain = getDomain(url)
 
   return (
     <span className="site-icon" style={{ width: size, height: size }} aria-hidden="true">
-      {failed ? (
-        <span className="site-icon-fallback">{name.slice(0, 1).toUpperCase()}</span>
-      ) : (
-        <img src={src} alt="" width={size} height={size} onError={() => setFailed(true)} />
-      )}
+      {/* Reset failed sources when an existing shortcut is edited to a different host. */}
+      <SiteIconImage key={domain} domain={domain} name={name} size={size} />
     </span>
   )
 }

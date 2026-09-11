@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react'
 import { DEFAULT_LIGHT, hoverLight, paintBubbleLight, stepLight } from '../effects/bubbleHighlights'
 import { springStep } from '../demos/liquid-gooey/physics'
 
+// Time scaling speeds the existing response; displacement scaling leaves hit boxes fixed.
+const BUBBLE_SPEED = 1.2
+const BUBBLE_TRAVEL = 8 * 1.3
+
 /** Animate only the skin: hit boxes, pagination and readable icons stay stable. */
 export function useBubbleLiquid(enabled: boolean) {
   const ref = useRef<HTMLDivElement>(null)
@@ -15,7 +19,7 @@ export function useBubbleLiquid(enabled: boolean) {
       ripple?.animate([
         { opacity: .6, scale: .72, borderWidth: '2px' },
         { opacity: 0, scale: 1.3, borderWidth: '.5px' },
-      ], { duration: 950, easing: 'cubic-bezier(.16, 1, .3, 1)' })
+      ], { duration: 950 / BUBBLE_SPEED, easing: 'cubic-bezier(.16, 1, .3, 1)' })
     }
     const pulse = { value: 0, velocity: 0 }
     const pull = { value: 0, velocity: 0 }
@@ -27,15 +31,16 @@ export function useBubbleLiquid(enabled: boolean) {
       frame = 0
       const dt = Math.min((now - (last || now - 16.67)) / 1000, 1 / 30)
       last = now
-      const nextLight = stepLight(light, lightTarget, dt)
+      const nextLight = stepLight(light, lightTarget, dt * BUBBLE_SPEED)
       if (nextLight.x !== light.x || nextLight.y !== light.y) paintBubbleLight(skin, nextLight)
       light = nextLight
       const lightMoving = light.x !== lightTarget.x || light.y !== lightTarget.y
-      const tension = springStep(pull, amount, dt, 240, 22)
-      const bounce = springStep(recoil, 0, dt, 145, 8)
-      const scale = 1 + springStep(pulse, 0, dt, 190, 13) * .12
+      // Scale frequency, damping and impulses together to preserve the original bounce amplitude.
+      const tension = springStep(pull, amount, dt, 240 * BUBBLE_SPEED ** 2, 22 * BUBBLE_SPEED)
+      const bounce = springStep(recoil, 0, dt, 145 * BUBBLE_SPEED ** 2, 8 * BUBBLE_SPEED)
+      const scale = 1 + springStep(pulse, 0, dt, 190 * BUBBLE_SPEED ** 2, 13 * BUBBLE_SPEED) * .12
       const stretch = (tension * .065 + bounce * .115) * (Math.abs(direction.x) * 2 - 1)
-      skin.style.transform = `translate(${direction.x * tension * 8}px, ${direction.y * tension * 8}px) scale(${(1 + stretch) * scale}, ${(1 - stretch) * scale})`
+      skin.style.transform = `translate(${direction.x * tension * BUBBLE_TRAVEL}px, ${direction.y * tension * BUBBLE_TRAVEL}px) scale(${(1 + stretch) * scale}, ${(1 - stretch) * scale})`
       if (lightMoving || amount || [pulse, pull, recoil].some(s => Math.abs(s.value) > .001 || Math.abs(s.velocity) > .001)) frame = requestAnimationFrame(paint)
       else { skin.style.transform = ''; last = 0 }
     }
@@ -64,7 +69,7 @@ export function useBubbleLiquid(enabled: boolean) {
 
     const punch = (event: PointerEvent) => {
       if (event.button !== 0 || !event.isPrimary) return
-      pulse.velocity = 12
+      pulse.velocity = 12 * BUBBLE_SPEED
       splash()
       wake()
     }
@@ -72,8 +77,8 @@ export function useBubbleLiquid(enabled: boolean) {
       const detail = (event as CustomEvent<{ amount: number; direction: { x: number; y: number }; land?: boolean }>).detail
       amount = detail.amount
       if (amount > .025) direction = detail.direction
-      if (previous > .08 && amount <= .08) recoil.velocity -= 5.8
-      if (detail.land) { recoil.velocity = 9.2; splash() }
+      if (previous > .08 && amount <= .08) recoil.velocity -= 5.8 * BUBBLE_SPEED
+      if (detail.land) { recoil.velocity = 9.2 * BUBBLE_SPEED; splash() }
       previous = amount
       wake()
     }

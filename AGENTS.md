@@ -38,7 +38,7 @@ No automated test framework or coverage threshold is configured yet. When introd
 
 ## Commit & Pull Request Guidelines
 
-There is no Git history yet, so no existing commit convention can be inferred. Use concise imperative commit subjects, for example `Add navigation search`. Keep commits focused. Pull requests should explain the change, include verification commands and results, link related issues when applicable, and include screenshots or recordings for UI changes.
+There is no Git history yet, so no existing commit convention can be inferred. 提交信息必须使用中文，简洁准确地概括本次变更，例如 `优化导航搜索`。保持每次提交范围聚焦。 Pull requests should explain the change, include verification commands and results, link related issues when applicable, and include screenshots or recordings for UI changes.
 
 ## Security & Configuration Tips
 

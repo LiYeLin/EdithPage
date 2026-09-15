@@ -38,7 +38,7 @@ No automated test framework or coverage threshold is configured yet. When introd
 
 ## Commit & Pull Request Guidelines
 
-There is no Git history yet, so no existing commit convention can be inferred. 提交信息必须使用中文，简洁准确地概括本次变更，例如 `优化导航搜索`。保持每次提交范围聚焦。 Pull requests should explain the change, include verification commands and results, link related issues when applicable, and include screenshots or recordings for UI changes.
+There is no Git history yet, so no existing commit convention can be inferred. 提交信息必须使用中文，简洁准确地概括本次变更，例如 `优化导航搜索`。保持每次提交范围聚焦。本仓库禁止向任何远端执行 `git push`；提交完成后只能生成 patch 文件交付或由用户手动应用。每次提交完成后，都必须基于 `origin/main..HEAD` 生成完整 patch 文件，使用 `git format-patch --binary --full-index --stdout origin/main..HEAD > /tmp/edithpage.patch`，并保留该文件，直到远端应用并确认无误。Pull requests should explain the change, include verification commands and results, link related issues when applicable, and include screenshots or recordings for UI changes.
 
 ## Security & Configuration Tips
 

@@ -1,0 +1,23 @@
+{
+  "skill_name": "edith-template-development",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "请在 Edith 导航站里新增一个‘专注列表’模板：保留现有搜索、编辑、删除、移动和撤销能力，模板用紧凑列表展示分类与站点，并能通过右上角切换入口切换。请直接实现并补齐必要测试。",
+      "expected_output": "新增独立模板目录和入口，使用 NavigationTemplateProps 与公共 actions，通过 registry 动态导入，不复制 App 或持久化逻辑；补充协议/切换/浏览器回归测试并运行检查命令。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "审查当前 Edith 模板化实现，重点判断新增职业模板是否会破坏 localStorage 内容、未提交搜索词、编辑撤销和模板切换。请给出基于源码和测试的结论，不要只看构建是否通过。",
+      "expected_output": "沿 App、TemplateHost、useTemplateSelection、config 和持久化路径说明事实证据，区分已验证行为与未验证边界，并提出最小范围的模板扩展准则。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我要给 Edith 做一个带拖拽动画的新模板。请说明模板应该如何报告 dragging/settling、如何处理 revealSite、Portal CSS、卸载清理、键盘和 prefers-reduced-motion，并给出实现前后的验收清单。",
+      "expected_output": "围绕现有协议给出状态时序、数据与视觉分离、清理和降级规则，避免引入模板私有公共状态，并包含纯逻辑与 Playwright 验收项。",
+      "files": []
+    }
+  ]
+}

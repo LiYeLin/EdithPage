@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { moveSite } from '../src/utils/moveSite.ts'
-import { isInsideBubble } from '../src/drag/collision.ts'
+import { isInsideBubble } from '../src/templates/bubble/drag/collision.ts'
 
 const site = { id: 'one', name: 'One', url: 'https://example.com', description: 'Keep me', shortcut: '⌘1' }
 const config = { accent: 'mint', modules: [

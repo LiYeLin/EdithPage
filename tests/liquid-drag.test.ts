@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ATTACH_DISTANCE, containsPoint, edgeContact } from '../src/drag/liquidGeometry.ts'
-import { LiquidSession, SETTLE_LIMIT_MS, type Arrival } from '../src/drag/liquidSession.ts'
-import { categoryKeyboardCoordinates } from '../src/drag/collision.ts'
+import { ATTACH_DISTANCE, containsPoint, edgeContact } from '../src/templates/bubble/drag/liquidGeometry.ts'
+import { LiquidSession, SETTLE_LIMIT_MS, type Arrival } from '../src/templates/bubble/drag/liquidSession.ts'
+import { categoryKeyboardCoordinates } from '../src/templates/bubble/drag/collision.ts'
 
 const rect = { left: 100, top: 100, width: 200, height: 200 }
 const source: Arrival = { moduleId: 'source', siteId: 'one', variant: 'module' }
@@ -118,3 +118,20 @@ test('keyboard arrows still choose a category and scroll it into view before mea
   assert.equal(scrolled, true)
   assert.equal(prevented, true)
 })
+
+for (const reason of ['complete', 'timeout', 'interrupted', 'unmount'] as const) {
+  test(`settling reports independently of input and releases on ${reason}`, () => {
+    const states: boolean[] = []
+    let deadline = () => {}
+    const session = new LiquidSession(() => {}, () => {}, {
+      schedule: callback => { deadline = callback; return () => {} },
+    }, state => states.push(state))
+    assert.equal(session.dragging, true)
+    session.settle(true, target)
+    assert.equal(session.dragging, false)
+    assert.deepEqual(states, [true])
+    session.finish(reason)
+    deadline()
+    assert.deepEqual(states, [true, false])
+  })
+}

@@ -15,7 +15,7 @@ function SiteIconImage({ domain, name, size }: { domain: string; name: string; s
   const fallbackText = getSiteIconFallbackText(domain, name)
 
   return src ? (
-    <img key={src} src={src} alt="" width={size} height={size}
+    <img key={src} src={src} alt="" width={size} height={size} draggable={false}
       onError={() => setSourceIndex((index) => index + 1)} />
   ) : (
     <span className={`site-icon-fallback${fallbackText === 'fast.ai' ? ' site-icon-wordmark' : ''}`}>{fallbackText}</span>

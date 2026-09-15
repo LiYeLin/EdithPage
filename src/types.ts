@@ -24,6 +24,7 @@ export type SearchEngine = {
 }
 
 export type NavigationConfig = {
+  templateId: string
   modules: Module[]
   accent: 'mint' | 'violet' | 'orange'
 }
@@ -32,3 +33,5 @@ export type EditorTarget =
   | { type: 'site'; moduleId: string; siteId: string }
   | { type: 'module'; moduleId: string }
   | null
+
+export type FrequentSiteItem = { site: Site; moduleId: string }

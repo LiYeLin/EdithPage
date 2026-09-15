@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: { main: 'index.html', liquidDemo: 'liquid-demo.html' },
+      input: { main: 'index.html' },
     },
   },
 })

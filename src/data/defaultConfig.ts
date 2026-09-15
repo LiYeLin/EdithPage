@@ -28,6 +28,7 @@ export const searchEngines: SearchEngine[] = [
 ]
 
 export const defaultConfig: NavigationConfig = {
+  templateId: 'bubble',
   accent: 'mint',
   modules: [
     {

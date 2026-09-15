@@ -37,7 +37,7 @@ export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
   }
 
   return (
-    <section className="search-deck" aria-label="搜索">
+    <section data-editing-interactive className="search-deck" aria-label="搜索">
       <SearchEnginePicker engine={engine} onChange={(item) => {
         onEngineChange(item)
         inputRef.current?.focus({ preventScroll: true })

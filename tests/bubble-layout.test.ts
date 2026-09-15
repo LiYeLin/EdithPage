@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { getBubbleLayout } from '../src/utils/bubbleLayout.ts'
+import { getBubbleLayout } from '../src/templates/bubble/utils/bubbleLayout.ts'
 
 for (const viewport of [320, 390, 620, 785, 1440]) {
   test(`${viewport}px: bubbles grow until their viewport-safe limit`, () => {

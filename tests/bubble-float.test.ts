@@ -7,7 +7,7 @@ import {
   stepBubbleFloatWorld,
   stopBubbleFloatBody,
   type BubbleFloatMeasurement,
-} from '../src/physics/bubbleFloat.ts'
+} from '../src/templates/bubble/physics/bubbleFloat.ts'
 
 const measurement = (id: string, anchorX = 0, anchorY = 0, radius = 20): BubbleFloatMeasurement => ({
   id,

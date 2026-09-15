@@ -1,11 +1,14 @@
-import { Plus, Settings2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { FrequentSites } from './components/FrequentSites'
-import { BubbleFloatProvider } from './components/BubbleFloatProvider'
-import { ModulePanel } from './components/ModulePanel'
+import type { TemplateDefinition, TemplateInteractionState } from './templates/types'
+import { templates as productionTemplates } from './templates/registry'
+import { canSwitchTemplate, getTemplateAppearance, selectTemplate } from './templates/config'
+import { TemplateHost } from './templates/TemplateHost'
+import { useTemplateSelection } from './templates/useTemplateSelection'
+import { TemplatePicker } from './components/TemplatePicker'
+import { Layers3, Plus, Settings2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { OnboardingGuide, type OnboardingStep } from './components/OnboardingGuide'
 import { SearchDeck } from './components/SearchDeck'
 import { SettingsDrawer } from './components/SettingsDrawer'
-import { SiteDragProvider } from './components/SiteDragProvider'
 import { searchEngines } from './data/defaultConfig'
 import { usePersistentConfig } from './hooks/usePersistentConfig'
 import type { EditorTarget, Module, SearchEngine, Site } from './types'
@@ -14,6 +17,8 @@ import { moveSite, type SiteMove } from './utils/moveSite'
 const ENGINE_STORAGE_KEY = 'edith-navigation-search-engine-v1'
 const USAGE_STORAGE_KEY = 'edith-navigation-usage-v1'
 const defaultFrequentIds = ['chatgpt', 'claude', 'github', 'deepseek', 'perplexity', 'huggingface', 'juejin']
+const ONBOARDING_STORAGE_KEY = 'edith-navigation-onboarding-completed-v1'
+
 const EDIT_MODE_INTERACTIVE_SELECTOR = [
   'a',
   'button',
@@ -22,13 +27,7 @@ const EDIT_MODE_INTERACTIVE_SELECTOR = [
   'textarea',
   'label',
   'form',
-  '.search-deck',
-  '.frequent-panel',
-  '.module-panel',
-  '.undo-toast',
-  '.editing-toast',
-  '.settings-drawer',
-  '.drawer-backdrop',
+  '[data-editing-interactive]',
 ].join(',')
 
 type UndoAction =
@@ -45,8 +44,16 @@ function loadUsageCounts(): Record<string, number> {
   }
 }
 
-function App() {
-  const { config, setConfig, resetConfig } = usePersistentConfig()
+function App({ templates = productionTemplates }: { templates?: readonly TemplateDefinition[] }) {
+  const { config, setConfig, resetConfig, storageError } = usePersistentConfig(templates)
+  const selection = useTemplateSelection(templates, config.templateId)
+  const appearance = getTemplateAppearance(selection.active?.definition)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerOpenRef = useRef(false)
+  const templateButtonRef = useRef<HTMLButtonElement>(null)
+  const pickerFocusTimer = useRef<number | null>(null)
+  const [interaction, setInteraction] = useState<TemplateInteractionState>({ dragging: false, settling: false })
+  const interactionRef = useRef(interaction)
   const [engine, setEngine] = useState<SearchEngine>(() => {
     try {
       return searchEngines.find((item) => item.id === localStorage.getItem(ENGINE_STORAGE_KEY)) ?? searchEngines[0]
@@ -63,6 +70,9 @@ function App() {
     }
   }
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(() => {
+    try { return localStorage.getItem(ONBOARDING_STORAGE_KEY) ? null : 1 } catch { return 1 }
+  })
   const [editing, setEditing] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [revealSite, setRevealSite] = useState<{ moduleId: string; siteId: string } | null>(null)
@@ -76,16 +86,17 @@ function App() {
 
   useEffect(() => () => {
     if (undoTimerRef.current !== null) window.clearTimeout(undoTimerRef.current)
+    if (pickerFocusTimer.current !== null) window.clearTimeout(pickerFocusTimer.current)
   }, [])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && editing && !settingsOpen
+      if (event.key === 'Escape' && editing && !settingsOpen && !pickerOpen
         && !dragSessionRef.current.active && performance.now() > dragSessionRef.current.suppressUntil) setEditing(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [editing, settingsOpen])
+  }, [editing, settingsOpen, pickerOpen])
 
   const frequentSites = useMemo(() => {
     const preference = new Map(defaultFrequentIds.map((id, index) => [id, index]))
@@ -106,7 +117,7 @@ function App() {
   const recordVisit = useCallback((siteId: string) => {
     setUsageCounts((current) => {
       const next = { ...current, [siteId]: (current[siteId] ?? 0) + 1 }
-      localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(next))
+      try { localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(next)) } catch { /* Keep visits usable without storage. */ }
       return next
     })
   }, [])
@@ -116,6 +127,12 @@ function App() {
     setDragging(active)
   }, [])
 
+  const handleInteractionStateChange = useCallback((state: TemplateInteractionState) => {
+    interactionRef.current = state
+    setInteraction(state)
+    if (dragSessionRef.current.active !== state.dragging) handleDragStateChange(state.dragging)
+  }, [handleDragStateChange])
+
   const preventDragClick = (event: MouseEvent<HTMLDivElement>) => {
     // A drop can dispatch a trailing click on the background or on the newly positioned icon.
     if (dragSessionRef.current.active || performance.now() < dragSessionRef.current.suppressUntil) {
@@ -124,15 +141,58 @@ function App() {
     }
   }
 
-  const enterEditMode = useCallback(() => setEditing(true), [])
+  const completeOnboardingAction = useCallback(() => {
+    setOnboardingStep((current) => {
+      if (!current || current === 1) return current === 1 ? 2 : current
+      if (current === 4) { try { localStorage.setItem(ONBOARDING_STORAGE_KEY, '1') } catch { /* storage unavailable */ } ; return null }
+      return (current + 1) as OnboardingStep
+    })
+  }, [])
+  const skipOnboarding = useCallback(() => { try { localStorage.setItem(ONBOARDING_STORAGE_KEY, '1') } catch { /* storage unavailable */ } ; setOnboardingStep(null) }, [])
+  const enterEditMode = useCallback(() => { setEditing(true); if (onboardingStep === 4) completeOnboardingAction() }, [completeOnboardingAction, onboardingStep])
 
   const finishEditingFromBlankArea = (event: MouseEvent<HTMLDivElement>) => {
-    if (!editing || settingsOpen) return
+    if (!editing || settingsOpen || pickerOpen) return
 
     const target = event.target
     if (!(target instanceof Element) || target.closest(EDIT_MODE_INTERACTIVE_SELECTOR)) return
 
     setEditing(false)
+  }
+
+  const cancelLoad = selection.cancel
+  const closePicker = useCallback(() => {
+    pickerOpenRef.current = false
+    setPickerOpen(false)
+    cancelLoad()
+    if (pickerFocusTimer.current !== null) window.clearTimeout(pickerFocusTimer.current)
+    // Restore only after React has removed inert, and never steal focus from a reopened picker.
+    pickerFocusTimer.current = window.setTimeout(() => {
+      pickerFocusTimer.current = null
+      if (!pickerOpenRef.current) templateButtonRef.current?.focus()
+    }, 20)
+  }, [cancelLoad])
+
+  const openPicker = () => {
+    if (!selection.active || selection.loading || !canSwitchTemplate(interactionRef.current)) return
+    setSettingsOpen(false)
+    pickerOpenRef.current = true
+    setPickerOpen(true)
+    if (onboardingStep === 3) completeOnboardingAction()
+  }
+
+  const chooseTemplate = (id: string) => {
+    if (!pickerOpenRef.current || selection.loading || !canSwitchTemplate(interactionRef.current)) return
+    if (id === selection.active?.definition.id) { closePicker(); return }
+    void selection.load(id, (loaded) => {
+      // Repeat the guard at commit time; disabled controls alone do not serialize events.
+      if (!pickerOpenRef.current || !canSwitchTemplate(interactionRef.current)) return
+      setConfig(current => selectTemplate(current, loaded.definition.id))
+      setEditing(false)
+      setRevealSite(null)
+      selection.setActive(loaded)
+      closePicker()
+    })
   }
 
   const closeSettings = () => {
@@ -144,24 +204,28 @@ function App() {
   const openGeneralSettings = () => {
     setActiveModuleId(null)
     setEditingTarget(null)
+    if (pickerOpenRef.current) closePicker()
     setSettingsOpen(true)
   }
 
   const openAddSite = (moduleId: string) => {
     setActiveModuleId(moduleId)
     setEditingTarget(null)
+    if (pickerOpenRef.current) closePicker()
     setSettingsOpen(true)
   }
 
   const openEditSite = (moduleId: string, siteId: string) => {
     setActiveModuleId(moduleId)
     setEditingTarget({ type: 'site', moduleId, siteId })
+    if (pickerOpenRef.current) closePicker()
     setSettingsOpen(true)
   }
 
   const openEditModule = (moduleId: string) => {
     setActiveModuleId(moduleId)
     setEditingTarget({ type: 'module', moduleId })
+    if (pickerOpenRef.current) closePicker()
     setSettingsOpen(true)
   }
 
@@ -204,15 +268,19 @@ function App() {
   }
 
   const moveSiteToModule = (move: SiteMove) => {
-    const next = moveSite(config, move)
-    if (next === config) return false
-    const source = config.modules.find((module) => module.id === move.fromModuleId)!
-    const originalIndex = source.sites.findIndex((site) => site.id === move.siteId)
-    const target = next.modules.find((module) => module.id === move.toModuleId)!
-    setConfig(next)
-    setRevealSite({ moduleId: move.toModuleId, siteId: move.siteId })
-    queueUndo({ type: 'move', move, originalIndex, message: `已将 ${source.sites[originalIndex].name} 移到「${target.title}」` })
-    return true
+    let moved = false
+    setConfig(current => {
+      const next = moveSite(current, move)
+      if (next === current) return current
+      const source = current.modules.find(module => module.id === move.fromModuleId)!
+      const originalIndex = source.sites.findIndex(site => site.id === move.siteId)
+      const target = next.modules.find(module => module.id === move.toModuleId)!
+      moved = true
+      setRevealSite({ moduleId: move.toModuleId, siteId: move.siteId })
+      queueUndo({ type: 'move', move, originalIndex, message: `已将 ${source.sites[originalIndex].name} 移到「${target.title}」` })
+      return next
+    })
+    return moved
   }
 
   const undoChange = () => {
@@ -271,31 +339,30 @@ function App() {
       }}
       onClickCapture={preventDragClick}
       data-accent={config.accent}
+      style={{
+        '--app-background-image': `url("${appearance.backgroundImage}")`,
+        '--app-background-position': appearance.backgroundPosition,
+      } as CSSProperties}
       onClick={finishEditingFromBlankArea}
     >
-      <SiteDragProvider
-        modules={config.modules}
-        enabled={editing && !settingsOpen}
-        onMove={moveSiteToModule}
-        onDragStateChange={handleDragStateChange}
-      >
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
       <div className="noise" />
 
-      <header className="topbar">
+      <header className="topbar" inert={pickerOpen}>
         <a className="brand" href="#top" aria-label="返回顶部">
           <img className="brand-mark" src="/brand/edith-mark-white.svg" alt="" aria-hidden="true" />
         </a>
 
         <div className="top-actions">
+          <button ref={templateButtonRef} className="template-button" type="button" onClick={openPicker} disabled={!selection.active || selection.loading || !canSwitchTemplate(interaction)} aria-label="切换模板"><Layers3 size={17} /></button>
           <button className="settings-button" type="button" onClick={openGeneralSettings} aria-label="打开设置">
             <Settings2 size={17} />
           </button>
         </div>
       </header>
 
-      <main id="top">
+      <main id="top" inert={pickerOpen}>
         <div className="hero-brand">
           <img
             className="hero-logo"
@@ -305,7 +372,7 @@ function App() {
         </div>
 
         <section className="command-row" aria-label="搜索和站点操作">
-          <SearchDeck engine={engine} onEngineChange={changeEngine} />
+          <SearchDeck engine={engine} onEngineChange={(next) => { changeEngine(next); if (onboardingStep === 2) completeOnboardingAction() }} />
           {editing && (
             <button className="quick-add" type="button" onClick={openGeneralSettings} aria-label="添加站点">
               <Plus size={17} />
@@ -314,39 +381,16 @@ function App() {
           )}
         </section>
 
-        <FrequentSites
-          sites={frequentSites}
-          isEditing={editing}
-          onEnterEditMode={enterEditMode}
-          onEditSite={openEditSite}
-          onRemoveSite={removeSite}
-          onVisit={recordVisit}
-        />
-
-        <BubbleFloatProvider blocked={editing || dragging || settingsOpen}>
-          <div className="module-grid" id="modules">
-            {config.modules.map((module, index) => (
-              <ModulePanel
-                module={module}
-                revealSite={revealSite?.moduleId === module.id ? revealSite : null}
-                index={index}
-                isEditing={editing}
-                onEnterEditMode={enterEditMode}
-                onAddSite={openAddSite}
-                onEditSite={openEditSite}
-                onEditModule={openEditModule}
-                onRemoveSite={removeSite}
-                onRemoveModule={removeModule}
-                onVisit={recordVisit}
-                key={module.id}
-              />
-            ))}
-          </div>
-        </BubbleFloatProvider>
+        <TemplateHost active={selection.active} error={selection.error} retry={selection.retryInitial} modules={config.modules} frequentSites={frequentSites} editing={editing}
+          interactionBlocked={settingsOpen || pickerOpen || selection.loading} revealSite={revealSite}
+          onInteractionStateChange={handleInteractionStateChange}
+          actions={{ enterEditMode, openSettings: openGeneralSettings, addSite: openAddSite,
+            edit: (target) => target.type === 'site' ? openEditSite(target.moduleId, target.siteId) : openEditModule(target.moduleId),
+            removeSite, removeModule, moveSite: moveSiteToModule, visitSite: recordVisit }} />
       </main>
 
       {undoAction ? (
-        <div className="undo-toast" role="status">
+        <div inert={pickerOpen} data-editing-interactive className="undo-toast" role="status">
           <span>{undoAction.message}</span>
           <button
             type="button"
@@ -365,9 +409,12 @@ function App() {
           >撤销</button>
         </div>
       ) : editing && (
-        <div className="editing-toast"><span /> 点击图标编辑，拖动到其他分类，点击 × 删除，点击空白处完成</div>
+        <div data-editing-interactive className="editing-toast"><span /> {selection.active?.definition.editingHint}</div>
       )}
 
+      {storageError && <div className="storage-error" role="alert">{storageError}</div>}
+      {pickerOpen && <TemplatePicker templates={templates} currentId={config.templateId} loading={selection.loading}
+        busy={!canSwitchTemplate(interaction)} error={selection.error} onSelect={chooseTemplate} onClose={closePicker} />}
       <SettingsDrawer
         key={drawerKey}
         open={settingsOpen}
@@ -378,7 +425,7 @@ function App() {
         onChange={setConfig}
         onReset={resetConfig}
       />
-      </SiteDragProvider>
+      {onboardingStep && !pickerOpen && !settingsOpen && <OnboardingGuide step={onboardingStep} onNext={completeOnboardingAction} onSkip={skipOnboarding} />}
     </div>
   )
 }

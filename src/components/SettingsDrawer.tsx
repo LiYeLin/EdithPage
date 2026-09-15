@@ -174,7 +174,7 @@ export function SettingsDrawer({
   return (
     <>
       <button className={`drawer-backdrop ${open ? 'is-open' : ''}`} onClick={onClose} aria-label="关闭设置" />
-      <aside className={`settings-drawer ${open ? 'is-open' : ''}`} aria-hidden={!open}>
+      <aside data-editing-interactive className={`settings-drawer ${open ? 'is-open' : ''}`} aria-hidden={!open} inert={!open}>
         <div className="drawer-head">
           <div className="drawer-title-mark"><Settings2 size={18} /></div>
           <div>
@@ -276,7 +276,7 @@ export function SettingsDrawer({
                   </section>
 
                   <button className="reset-button" type="button" onClick={onReset}>
-                    <RotateCcw size={16} /> 恢复程序员模板默认配置
+                    <RotateCcw size={16} /> 恢复默认内容与配色
                   </button>
                 </>
               )}

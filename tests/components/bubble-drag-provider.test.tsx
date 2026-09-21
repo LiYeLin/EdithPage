@@ -313,6 +313,51 @@ describe('SiteDragProvider', () => {
     expect(screen.getByText('Alpha', { selector: '.site-drag-preview strong' })).not.toBeNull()
   })
 
+  it('拖拽中的指针移动更新液态图层位置，且离开目标分类会清除目标状态', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('SVGFEGaussianBlurElement', class SVGFEGaussianBlurElement {})
+    vi.stubGlobal('SVGFEColorMatrixElement', class SVGFEColorMatrixElement {})
+    vi.mocked(CSS.supports).mockReturnValue(true)
+    render(<Harness />)
+    const target = document.querySelector('.site-tile-wrap')!
+    const drag = active()
+    act(() => callbacks().onDragStart({ active: drag, activatorEvent: mouseActivator(target) }))
+    act(() => document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 123, clientY: 234 })))
+    expect(motionBoundary.values.some(value => value.set.mock.calls.some(([next]) => next === 136))).toBe(true)
+    expect(motionBoundary.values.some(value => value.set.mock.calls.some(([next]) => next === 237))).toBe(true)
+
+    act(() => callbacks().onDragOver({
+      active: drag,
+      over: { id: 'b', data: { current: { type: 'module', moduleId: 'b' } } },
+    }))
+    act(() => callbacks().onDragOver({
+      active: drag,
+      over: { id: 'a', data: { current: { type: 'module', moduleId: 'a' } } },
+    }))
+    act(() => callbacks().onDragCancel())
+    act(() => vi.advanceTimersByTime(360))
+    expect(screen.getByTestId('pending').textContent).toBe('none')
+    expect(document.body.querySelector('.liquid-drag-layer')).toBeNull()
+  })
+
+  it('同一输入重复开始拖拽时只保留一个液态会话', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('SVGFEGaussianBlurElement', class SVGFEGaussianBlurElement {})
+    vi.stubGlobal('SVGFEColorMatrixElement', class SVGFEColorMatrixElement {})
+    vi.mocked(CSS.supports).mockReturnValue(true)
+    render(<Harness />)
+    const target = document.querySelector('.site-tile-wrap')!
+    const drag = active()
+    act(() => callbacks().onDragStart({ active: drag, activatorEvent: mouseActivator(target) }))
+    const first = document.body.querySelector('.liquid-drag-layer')
+    act(() => callbacks().onDragStart({ active: drag, activatorEvent: mouseActivator(target) }))
+    expect(document.body.querySelectorAll('.liquid-drag-layer')).toHaveLength(1)
+    expect(document.body.querySelector('.liquid-drag-layer')).not.toBe(first)
+    act(() => callbacks().onDragCancel())
+    act(() => vi.advanceTimersByTime(360))
+    expect(document.body.querySelector('.liquid-drag-layer')).toBeNull()
+  })
+
   it('页面隐藏和站点被删除都会释放液态会话，卸载清理 portal、监听和活动状态', () => {
     vi.stubGlobal('SVGFEGaussianBlurElement', class SVGFEGaussianBlurElement {})
     vi.stubGlobal('SVGFEColorMatrixElement', class SVGFEColorMatrixElement {})

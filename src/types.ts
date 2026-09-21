@@ -23,10 +23,25 @@ export type SearchEngine = {
   placeholder: string
 }
 
+export type IconPosition = {
+  x: number
+  y: number
+  angle: number
+}
+
+export type IconPositionPersistence = {
+  enabled: boolean
+  positions: Record<string, IconPosition>
+}
+
 export type NavigationConfig = {
   templateId: string
   modules: Module[]
   accent: 'mint' | 'violet' | 'orange'
+  iconPositionPersistence?: {
+    matter?: IconPositionPersistence
+    beijing?: IconPositionPersistence
+  }
 }
 
 export type EditorTarget =

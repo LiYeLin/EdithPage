@@ -25,6 +25,7 @@
     "lucide-react": "latest",
     "matter-js": "^0.20.0",
     "motion": "^13.2.0",
+    "poly-decomp": "^0.3.0",
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest",

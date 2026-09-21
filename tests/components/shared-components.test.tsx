@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import userEvent from '@testing-library/user-event'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SiteIcon } from '../../src/components/SiteIcon'
@@ -277,5 +278,49 @@ describe('TemplateHost', () => {
     expect(notify).not.toHaveBeenCalled()
     unmount()
     expect(notify).toHaveBeenCalledWith({ dragging: false, settling: false })
+  })
+})
+
+
+describe('保存图标位置设置', () => {
+  it.each(['matter', 'beijing'])('%s 默认关闭，键盘开关保留两个模板的已有数据', async templateId => {
+    const user = userEvent.setup()
+    const positions = { alpha: { x: 0.25, y: 0.4, angle: 0.3 } }
+    const input: NavigationConfig = { ...config, templateId, iconPositionPersistence: {
+      matter: { enabled: false, positions }, beijing: { enabled: false, positions },
+    } }
+    const onChange = vi.fn()
+    const props = { open: true, activeModuleId: null, editingTarget: null, onClose: vi.fn(), onChange, onReset: vi.fn() }
+    const { rerender } = render(<SettingsDrawer {...props} config={input} />)
+    const toggle = screen.getByRole('switch', { name: '保存图标位置' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    toggle.focus()
+    await user.keyboard(' ')
+    const enabled = onChange.mock.lastCall![0] as NavigationConfig
+    const key = templateId as 'matter' | 'beijing'
+    expect(enabled.iconPositionPersistence?.[key]).toEqual({ enabled: true, positions })
+    const other = key === 'matter' ? 'beijing' : 'matter'
+    expect(enabled.iconPositionPersistence?.[other]).toEqual(input.iconPositionPersistence?.[other])
+    rerender(<SettingsDrawer {...props} config={enabled} />)
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('开启：刷新后恢复上次保存的位置。')).toBeVisible()
+    toggle.focus()
+    await user.keyboard('{Enter}')
+    expect(onChange.mock.lastCall![0].iconPositionPersistence[key]).toEqual({ enabled: false, positions })
+  })
+
+  it.each(['bubble', 'plain'])('%s 不显示开关', templateId => {
+    render(<SettingsDrawer open activeModuleId={null} editingTarget={null} config={{ ...config, templateId }} onClose={vi.fn()} onChange={vi.fn()} onReset={vi.fn()} />)
+    expect(screen.queryByRole('switch')).toBeNull()
+  })
+
+  it('编辑站点或分类时不显示开关；旧配置中的开关默认为关闭', () => {
+    const props = { open: true, activeModuleId: null, config: { ...config, templateId: 'matter' }, onClose: vi.fn(), onChange: vi.fn(), onReset: vi.fn() }
+    const { rerender } = render(<SettingsDrawer {...props} editingTarget={null} />)
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+    rerender(<SettingsDrawer {...props} editingTarget={{ type: 'site', moduleId: 'a', siteId: 'alpha' }} />)
+    expect(screen.queryByRole('switch')).toBeNull()
+    rerender(<SettingsDrawer {...props} editingTarget={{ type: 'module', moduleId: 'a' }} />)
+    expect(screen.queryByRole('switch')).toBeNull()
   })
 })

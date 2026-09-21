@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 const config = {
   templateId: 'matter',
@@ -10,6 +10,31 @@ const config = {
     accent: '#9ff7cd',
     sites: [{ id: 'github', name: 'GitHub', url: 'https://github.com/', description: '' }],
   }],
+}
+
+// 所有外部资源与目的页均在浏览器上下文拦截，验证导航但不产生外部访问。
+test.beforeEach(async ({ context }) => {
+  await context.route('**/*', route => {
+    if (route.request().url().startsWith('http://127.0.0.1:4179/')) return route.continue()
+    if (route.request().resourceType() === 'image') return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="#9ff7cd"/></svg>' })
+    return route.fulfill({ contentType: route.request().resourceType() === 'script' ? 'application/javascript' : 'text/html', body: route.request().resourceType() === 'script' ? '' : '<title>Navigation target</title>' })
+  })
+})
+
+async function openMatter(page: Page, initial = config) {
+  await page.addInitScript(value => {
+    localStorage.setItem('edith-navigation-config-v3', JSON.stringify(value))
+    localStorage.setItem('edith-navigation-onboarding-completed-v1', '1')
+  }, initial)
+  await page.goto('/')
+  // 等图标落稳后再取坐标，避免把物理下落误判成点击失败。
+  await page.locator('.matter-icon-link').first().click({ trial: true })
+}
+
+async function center(icon: Locator) {
+  const box = await icon.boundingBox()
+  if (!box) throw new Error('Missing matter icon')
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
 }
 
 test('非编辑态提供可访问的编辑模式入口', async ({ page }) => {
@@ -41,7 +66,7 @@ test('物理图标从图片中心拖拽时不触发浏览器原生图片拖拽',
   await expect(image).toHaveCSS('pointer-events', 'none')
 })
 
-test('点击图标中心仍然可以打开网站并记录访问', async ({ page }) => {
+test('点击图标中心仍然可以打开网站并记录访问', async ({ page, context }) => {
   await page.addInitScript((value) => {
     localStorage.setItem('edith-navigation-config-v3', JSON.stringify(value))
     localStorage.setItem('edith-navigation-onboarding-completed-v1', '1')
@@ -53,9 +78,14 @@ test('点击图标中心仍然可以打开网站并记录访问', async ({ page 
   const box = await icon.boundingBox()
   if (!box) throw new Error('物理图标未进入可点击区域')
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  const opened = context.waitForEvent('page')
   await page.mouse.down()
+  await expect(page.locator('.app')).not.toHaveClass(/is-site-dragging/)
   await page.waitForTimeout(180)
   await page.mouse.up()
+  const popup = await opened
+  await popup.waitForLoadState()
+  expect(popup.url()).toBe(config.modules[0].sites[0].url)
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('edith-navigation-usage-v1') ?? '{}'))).toEqual({ github: 1 })
 })
 
@@ -262,4 +292,81 @@ for (const interruption of ['pointercancel', 'blur', 'visibilitychange'] as cons
   await icon.locator('a').evaluate((anchor) => (anchor as HTMLAnchorElement).click())
   expect(await popupPromise).toBeNull()
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('edith-navigation-usage-v1') ?? '{}'))).toEqual({})
+})
+
+
+for (const secondSiteId of ['github', 'example']) test(`快速连续点击 ${secondSiteId}，每次只打开一个正确页面并记录一次访问`, async ({ page, context }) => {
+  const initial = structuredClone(config)
+  initial.modules[0].sites.push({ id: 'example', name: 'Example', url: 'https://matter-navigation-target.test/second', description: '' })
+  await openMatter(page, initial)
+  const first = await center(page.locator('.matter-icon-link[data-site-id="github"]'))
+  const second = await center(page.locator(`.matter-icon-link[data-site-id="${secondSiteId}"]`))
+  const popups: Page[] = []
+  context.on('page', popup => popups.push(popup))
+
+  await page.mouse.click(first.x, first.y)
+  await page.mouse.click(second.x, second.y)
+
+  await expect.poll(() => popups.length).toBe(2)
+  for (const popup of popups) await popup.waitForLoadState()
+  expect(popups.map(popup => popup.url())).toEqual([
+    initial.modules[0].sites[0].url,
+    initial.modules[0].sites.find(site => site.id === secondSiteId)!.url,
+  ])
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('edith-navigation-usage-v1') ?? '{}'))).toEqual(
+    secondSiteId === 'github' ? { github: 2 } : { github: 1, example: 1 },
+  )
+  expect(context.pages()).toHaveLength(3)
+})
+
+test('实际拖拽不会导航，松手后立即重新点击仍可打开网站', async ({ page, context }) => {
+  await openMatter(page)
+  const icon = page.locator('.matter-icon-link').first()
+  const point = await center(icon)
+  await page.mouse.move(point.x, point.y)
+  await page.mouse.down()
+  await page.mouse.move(point.x + 150, point.y - 150, { steps: 8 })
+  await expect(page.locator('.app')).toHaveClass(/is-site-dragging/)
+  await page.mouse.up()
+  expect(context.pages()).toHaveLength(1)
+  expect(await page.evaluate(() => localStorage.getItem('edith-navigation-usage-v1'))).toBeNull()
+
+  const next = await center(icon)
+  const opened = context.waitForEvent('page')
+  await page.mouse.click(next.x, next.y)
+  const popup = await opened
+  await popup.waitForLoadState()
+  expect(popup.url()).toBe(config.modules[0].sites[0].url)
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('edith-navigation-usage-v1') ?? '{}'))).toEqual({ github: 1 })
+  expect(context.pages()).toHaveLength(2)
+})
+
+test('键盘 Enter 打开正确站点且只记录一次', async ({ page, context }) => {
+  await openMatter(page)
+  const anchor = page.locator('.matter-icon-anchor').first()
+  await anchor.focus()
+  const opened = context.waitForEvent('page')
+  await page.keyboard.press('Enter')
+  const popup = await opened
+  await popup.waitForLoadState()
+  expect(popup.url()).toBe(config.modules[0].sites[0].url)
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('edith-navigation-usage-v1') ?? '{}'))).toEqual({ github: 1 })
+  expect(context.pages()).toHaveLength(2)
+})
+
+test('窄屏触摸轻点打开正确站点且只记录一次', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const cdp = await context.newCDPSession(page)
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true })
+  await openMatter(page)
+  const point = await center(page.locator('.matter-icon-link').first())
+  const opened = context.waitForEvent('page')
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...point, id: 1 }] })
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  const popup = await opened
+  await popup.waitForLoadState()
+  expect(popup.url()).toBe(config.modules[0].sites[0].url)
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('edith-navigation-usage-v1') ?? '{}'))).toEqual({ github: 1 })
+  expect(context.pages()).toHaveLength(2)
+  await cdp.detach()
 })

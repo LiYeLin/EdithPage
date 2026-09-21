@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { useState, type ComponentType } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App'
 import type { NavigationTemplateProps, TemplateDefinition } from '../src/templates/types'
@@ -181,12 +181,15 @@ async function renderApp(options: {
   catalog?: readonly TemplateDefinition[]
   config?: NavigationConfig | null
   onboarding?: boolean
+  readyTestId?: string
 } = {}) {
   if (options.config !== null) seedConfig(options.config ?? fixtureConfig)
   if (options.onboarding !== true) localStorage.setItem(ONBOARDING_KEY, '1')
   const catalog = options.catalog ?? createCatalog()
   const view = render(<App templates={catalog} />)
-  await screen.findByTestId(options.config?.templateId === 'second' ? 'template-B' : 'template-A')
+  const readyTestId = options.readyTestId
+    ?? (options.config?.templateId === 'second' ? 'template-B' : 'template-A')
+  await screen.findByTestId(readyTestId)
   return { ...view, catalog }
 }
 
@@ -330,7 +333,7 @@ describe('App 编辑模式与设置入口', () => {
     enterEditing()
     fireEvent.click(screen.getByRole('button', { name: '打开设置' }))
 
-    expect(screen.getByRole('heading', { name: '定制工作台' })).toBeTruthy()
+    expect(screen.getByRole('complementary')).toBeTruthy()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.getByTestId('editing-state').textContent).toBe('编辑状态：开启')
 
@@ -379,16 +382,16 @@ describe('App 编辑模式与设置入口', () => {
     await renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: '打开设置' }))
-    expect(screen.getByRole('heading', { name: '定制工作台' })).toBeTruthy()
+    expect(screen.getByRole('complementary')).toBeTruthy()
     closeSettings()
 
     fireEvent.click(screen.getByRole('button', { name: '模板设置入口' }))
-    expect(screen.getByRole('heading', { name: '定制工作台' })).toBeTruthy()
+    expect(screen.getByRole('complementary')).toBeTruthy()
     closeSettings()
 
     enterEditing()
     fireEvent.click(screen.getByRole('button', { name: '添加站点' }))
-    expect(screen.getByRole('heading', { name: '定制工作台' })).toBeTruthy()
+    expect(screen.getByRole('complementary')).toBeTruthy()
   })
 
   it('addSite、编辑站点和编辑分类动作进入正确设置上下文', async () => {
@@ -752,5 +755,111 @@ describe('App 搜索、引导与存储错误', () => {
     unmount()
 
     expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+
+it('公共位置动作独立保存、过滤删除/非法数据、去重，且不会复活关闭或重置后的设置', async () => {
+  let latest!: NavigationTemplateProps
+  const Probe = (props: NavigationTemplateProps) => {
+    useEffect(() => { latest = props }, [props])
+    return <p data-testid="position-probe">位置协议</p>
+  }
+  const templates: TemplateDefinition[] = [{ id: 'matter', name: 'Matter', description: '', editingHint: '', load: async () => ({ default: Probe }) }]
+  seedConfig({ ...fixtureConfig, templateId: 'matter', iconPositionPersistence: {
+    matter: { enabled: true, positions: {} }, beijing: { enabled: true, positions: {} },
+  } })
+  localStorage.setItem(ONBOARDING_KEY, '1')
+  render(<App templates={templates} />)
+  await screen.findByTestId('position-probe')
+  const save = latest.actions.saveIconPositions!
+  const position = { x: 0.2, y: 0.3, angle: 0.4 }
+  const second = { x: 0.6, y: 0.7, angle: 0.8 }
+  const read = () => JSON.parse(localStorage.getItem(CONFIG_KEY)!) as NavigationConfig
+  act(() => {
+    save('matter', { alpha: position, deleted: position, beta: { ...position, x: Infinity } })
+    save('beijing', { alpha: second })
+    expect(read().iconPositionPersistence).toEqual({
+      matter: { enabled: true, positions: { alpha: position } },
+      beijing: { enabled: true, positions: { alpha: second } },
+    })
+  })
+  expect(latest.iconPositionPersistence).toEqual({ enabled: true, positions: { alpha: position } })
+  const write = vi.spyOn(Storage.prototype, 'setItem')
+  act(() => save('matter', { alpha: { ...position } }))
+  expect(write).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: '打开设置' }))
+  fireEvent.click(screen.getByRole('switch', { name: '保存图标位置' }))
+  act(() => save('matter', { alpha: second }))
+  expect(read().iconPositionPersistence?.matter).toEqual({ enabled: false, positions: { alpha: position } })
+  fireEvent.click(screen.getByRole('button', { name: /恢复默认内容与配色/ }))
+  act(() => save('beijing', { alpha: second }))
+  expect(read().iconPositionPersistence).toBeUndefined()
+})
+
+describe('App 图标位置动作边界', () => {
+  it('关闭当前模板位置持久化时忽略快照，且不会覆盖另一模板', async () => {
+    let latest!: NavigationTemplateProps
+    const Probe = (props: NavigationTemplateProps) => {
+      useEffect(() => { latest = props }, [props])
+      return <p data-testid="position-boundary-probe">位置边界协议</p>
+    }
+    const positions = { alpha: { x: 0.2, y: 0.3, angle: 0.4 } }
+    const beijing = { beta: { x: 0.6, y: 0.7, angle: 0.8 } }
+    const templates: TemplateDefinition[] = [{ id: 'matter', name: 'Matter', description: '', editingHint: '', load: async () => ({ default: Probe }) }]
+    await renderApp({
+      catalog: templates,
+      config: { ...fixtureConfig, templateId: 'matter', iconPositionPersistence: {
+        matter: { enabled: false, positions }, beijing: { enabled: true, positions: beijing },
+      } },
+      readyTestId: 'position-boundary-probe',
+    })
+    const write = vi.spyOn(Storage.prototype, 'setItem')
+    act(() => latest.actions.saveIconPositions?.('matter', { alpha: { x: 0.9, y: 0.9, angle: 1 } }))
+    expect(write).not.toHaveBeenCalledWith(CONFIG_KEY, expect.anything())
+    expect(JSON.parse(localStorage.getItem(CONFIG_KEY)!).iconPositionPersistence).toEqual({
+      matter: { enabled: false, positions }, beijing: { enabled: true, positions: beijing },
+    })
+  })
+
+  it('空快照清除当前站点位置，删除站点后的快照只保留仍存在的站点', async () => {
+    let latest!: NavigationTemplateProps
+    const Probe = (props: NavigationTemplateProps) => {
+      useEffect(() => { latest = props }, [props])
+      return <p data-testid="position-cleanup-probe">位置清理协议</p>
+    }
+    const templates: TemplateDefinition[] = [{ id: 'beijing', name: 'Beijing', description: '', editingHint: '', load: async () => ({ default: Probe }) }]
+    const initial = {
+      alpha: { x: 0.2, y: 0.3, angle: 0.4 }, beta: { x: 0.5, y: 0.6, angle: 0.7 },
+    }
+    await renderApp({
+      catalog: templates,
+      config: { ...fixtureConfig, templateId: 'beijing', iconPositionPersistence: { beijing: { enabled: true, positions: initial } } },
+      readyTestId: 'position-cleanup-probe',
+    })
+    act(() => latest.actions.saveIconPositions?.('beijing', { alpha: initial.alpha, deleted: initial.beta }))
+    expect(JSON.parse(localStorage.getItem(CONFIG_KEY)!).iconPositionPersistence.beijing.positions).toEqual({ alpha: initial.alpha })
+    act(() => latest.actions.saveIconPositions?.('beijing', {}))
+    expect(JSON.parse(localStorage.getItem(CONFIG_KEY)!).iconPositionPersistence.beijing).toEqual({ enabled: true, positions: {} })
+  })
+
+  it.each(['openSettings', 'addSite', 'editSite', 'editModule'] as const)('调用 %s 入口会关闭已经打开的模板选择器', async (actionName) => {
+    let latest!: NavigationTemplateProps
+    const Probe = (props: NavigationTemplateProps) => {
+      useEffect(() => { latest = props }, [props])
+      return <p data-testid="picker-action-probe">选择器动作协议</p>
+    }
+    const templates: TemplateDefinition[] = [{ id: 'bubble', name: 'Bubble', description: '', editingHint: '', load: async () => ({ default: Probe }) }]
+    await renderApp({ catalog: templates, readyTestId: 'picker-action-probe' })
+    fireEvent.click(screen.getByRole('button', { name: '切换模板' }))
+    expect(screen.getByRole('dialog', { name: '选择模板' })).toBeTruthy()
+    act(() => {
+      if (actionName === 'openSettings') latest.actions.openSettings()
+      if (actionName === 'addSite') latest.actions.addSite('one')
+      if (actionName === 'editSite') latest.actions.edit({ type: 'site', moduleId: 'one', siteId: 'alpha' })
+      if (actionName === 'editModule') latest.actions.edit({ type: 'module', moduleId: 'one' })
+    })
+    expect(screen.queryByRole('dialog', { name: '选择模板' })).toBeNull()
+    expect(screen.getByRole('complementary')).toBeTruthy()
   })
 })

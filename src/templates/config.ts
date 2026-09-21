@@ -1,5 +1,5 @@
 import { defaultConfig } from '../data/defaultConfig.ts'
-import type { NavigationConfig } from '../types'
+import type { IconPosition, IconPositionPersistence, NavigationConfig } from '../types'
 import type { TemplateAppearance, TemplateDefinition, TemplateInteractionState } from './types'
 
 export const DEFAULT_TEMPLATE_APPEARANCE: TemplateAppearance = {
@@ -9,6 +9,51 @@ export const DEFAULT_TEMPLATE_APPEARANCE: TemplateAppearance = {
 
 export function getTemplateAppearance(template: Pick<TemplateDefinition, 'appearance'> | null | undefined): TemplateAppearance {
   return { ...DEFAULT_TEMPLATE_APPEARANCE, ...(template?.appearance ?? {}) }
+}
+
+export const DEFAULT_ICON_POSITION_PERSISTENCE: IconPositionPersistence = {
+  enabled: false,
+  positions: {},
+}
+
+export function isValidIconPosition(value: unknown): value is IconPosition {
+  if (!isRecord(value)) return false
+  return typeof value.x === 'number' && Number.isFinite(value.x) && value.x >= 0 && value.x <= 1
+    && typeof value.y === 'number' && Number.isFinite(value.y) && value.y >= 0 && value.y <= 1
+    && typeof value.angle === 'number' && Number.isFinite(value.angle)
+}
+
+export function normalizeIconPositions(value: unknown): Record<string, IconPosition> {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).filter(([, position]) => isValidIconPosition(position)),
+  ) as Record<string, IconPosition>
+}
+
+function normalizeIconPositionPersistenceSlot(value: unknown): IconPositionPersistence {
+  if (!isRecord(value)) return { ...DEFAULT_ICON_POSITION_PERSISTENCE, positions: {} }
+  return {
+    enabled: typeof value.enabled === 'boolean' ? value.enabled : false,
+    positions: normalizeIconPositions(value.positions),
+  }
+}
+
+/** Normalize only when the optional field existed, so legacy configs are not rewritten in memory. */
+export function normalizeIconPositionPersistence(value: unknown): NavigationConfig['iconPositionPersistence'] {
+  if (!isRecord(value)) return {}
+  const result: NonNullable<NavigationConfig['iconPositionPersistence']> = {}
+  if ('matter' in value) result.matter = normalizeIconPositionPersistenceSlot(value.matter)
+  if ('beijing' in value) result.beijing = normalizeIconPositionPersistenceSlot(value.beijing)
+  return result
+}
+
+export function getIconPositionPersistence(config: Pick<NavigationConfig, 'iconPositionPersistence'>, templateId: 'matter' | 'beijing'): IconPositionPersistence {
+  const configured = config.iconPositionPersistence?.[templateId]
+  if (!configured) return { enabled: false, positions: {} }
+  return {
+    enabled: configured.enabled === true,
+    positions: normalizeIconPositions(configured.positions),
+  }
 }
 
 /** Only normalize template identity. Existing user content is not a template preset. */
@@ -38,7 +83,14 @@ export function normalizeTemplateConfig(config: unknown, catalog: readonly Templ
   const templateId = typeof safeConfig.templateId === 'string' && catalog.some(template => template.id === safeConfig.templateId)
     ? safeConfig.templateId
     : defaultConfig.templateId
-  return { ...safeConfig, templateId }
+  if (!Object.prototype.hasOwnProperty.call(safeConfig, 'iconPositionPersistence')) {
+    return { ...safeConfig, templateId }
+  }
+  return {
+    ...safeConfig,
+    templateId,
+    iconPositionPersistence: normalizeIconPositionPersistence(safeConfig.iconPositionPersistence),
+  }
 }
 
 export function selectTemplate(config: NavigationConfig, templateId: string): NavigationConfig {

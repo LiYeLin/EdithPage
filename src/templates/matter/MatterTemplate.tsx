@@ -1,10 +1,11 @@
 import './matter.css'
 import Matter from 'matter-js'
+import { isValidIconPosition } from '../config'
 import { useEffect, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { SiteIcon } from '../../components/SiteIcon'
 import { FrequentSiteStrip } from '../../components/FrequentSiteStrip'
-import type { Module, Site } from '../../types'
+import type { IconPosition, IconPositionPersistence, Module, Site } from '../../types'
 import type { NavigationTemplateProps } from '../types'
 
 type MatterSite = { site: Site; module: Module }
@@ -17,8 +18,8 @@ type BodyMeta = {
 
 type ActiveDrag = {
   body: Matter.Body
-  siteId: string
   pointerId: number
+  captureTarget: HTMLAnchorElement
   offsetX: number
   offsetY: number
   startX: number
@@ -53,12 +54,30 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
-function createBody(entry: MatterSite, index: number, width: number) {
+function clampBodyToStage(body: Matter.Body, width: number, height: number) {
+  const halfWidth = Math.max(body.position.x - body.bounds.min.x, body.bounds.max.x - body.position.x)
+  const halfHeight = Math.max(body.position.y - body.bounds.min.y, body.bounds.max.y - body.position.y)
+  const minX = Math.max(0, halfWidth)
+  const maxX = Math.max(minX, width - halfWidth)
+  const minY = Math.max(0, halfHeight)
+  const maxY = Math.max(minY, height - halfHeight)
+  Matter.Body.setPosition(body, {
+    x: Math.min(maxX, Math.max(minX, body.position.x)),
+    y: Math.min(maxY, Math.max(minY, body.position.y)),
+  })
+}
+
+function createBody(entry: MatterSite, index: number, width: number, height: number, saved?: IconPosition) {
   const random = seeded(entry.site.id)
   const size = 30 + Math.round(random() * 10)
-  const x = 48 + random() * Math.max(1, width - 96)
-  const y = -80 - index * 42 - random() * 160
-  const angle = (random() - 0.5) * 0.7
+  // Always consume the spawn RNG values: restoration must not change the site's shape.
+  const spawnX = 48 + random() * Math.max(1, width - 96)
+  const spawnY = -80 - index * 42 - random() * 160
+  const spawnAngle = (random() - 0.5) * 0.7
+  const restored = isValidIconPosition(saved)
+  const x = restored ? saved.x * Math.max(1, width) : spawnX
+  const y = restored ? saved.y * Math.max(1, height) : spawnY
+  const angle = restored ? saved.angle : spawnAngle
   const accent = entry.module.accent
   const common = {
     angle,
@@ -78,6 +97,14 @@ function createBody(entry: MatterSite, index: number, width: number) {
     ? Matter.Bodies.rectangle(x, y, size * 1.65, size * 1.2, common)
     : Matter.Bodies.polygon(x, y, 4 + Math.floor(random() * 5), size, common)
 
+  if (restored) {
+    Matter.Body.setAngle(body, angle)
+    Matter.Body.setVelocity(body, { x: 0, y: 0 })
+    Matter.Body.setAngularVelocity(body, 0)
+    Matter.Sleeping.set(body, false)
+    clampBodyToStage(body, width, height)
+  }
+
   return { body, entry, size: size * 2 }
 }
 
@@ -91,17 +118,27 @@ export default function MatterTemplate({
   editing,
   interactionBlocked,
   actions,
+  iconPositionPersistence,
   onInteractionStateChange,
 }: NavigationTemplateProps) {
   const stageRef = useRef<HTMLDivElement>(null)
   const iconRefs = useRef(new Map<string, HTMLDivElement>())
   const suppressClickUntil = useRef(0)
-  const skipClickVisitUntil = useRef(0)
   const activeDrag = useRef<ActiveDrag | null>(null)
   const physicsBodies = useRef(new Map<string, Matter.Body>())
   const syncIconsRef = useRef<(() => void) | null>(null)
   const removeGlobalDragListeners = useRef<(() => void) | null>(null)
   const sites = useMemo(() => allSites(modules), [modules])
+  const iconPositionPersistenceRef = useRef<IconPositionPersistence | undefined>(iconPositionPersistence)
+  const saveIconPositionsRef = useRef(actions.saveIconPositions)
+  const saveCurrentPositionsRef = useRef<() => void>(() => {})
+  const reconcileRef = useRef<((entries: MatterSite[]) => void) | null>(null)
+  const persistenceEnabled = iconPositionPersistence?.enabled === true
+
+  useEffect(() => {
+    iconPositionPersistenceRef.current = iconPositionPersistence
+    saveIconPositionsRef.current = actions.saveIconPositions
+  }, [actions.saveIconPositions, iconPositionPersistence])
 
   useEffect(() => {
     onInteractionStateChange({ dragging: false, settling: false })
@@ -112,6 +149,9 @@ export default function MatterTemplate({
     const stage = stageRef.current
     if (!stage) return
 
+    let disposed = false
+    let viewportWidth = Math.max(1, stage.clientWidth)
+    let viewportHeight = Math.max(1, stage.clientHeight)
     const engine = Matter.Engine.create({ enableSleeping: true })
     engine.gravity.y = 1.05
     engine.positionIterations = 10
@@ -122,8 +162,8 @@ export default function MatterTemplate({
       element: stage,
       engine,
       options: {
-        width: stage.clientWidth,
-        height: stage.clientHeight,
+        width: viewportWidth,
+        height: viewportHeight,
         wireframes: false,
         background: 'transparent',
         pixelRatio: window.devicePixelRatio,
@@ -133,22 +173,33 @@ export default function MatterTemplate({
     render.canvas.setAttribute('aria-hidden', 'true')
 
     const runner = Matter.Runner.create()
-    const bodies: BodyMeta[] = sites.map((entry, index) => createBody(entry, index, stage.clientWidth))
-    Matter.Composite.add(engine.world, bodies.map(({ body }) => body))
-    physicsBodies.current = new Map(bodies.map(({ body, entry }) => [entry.site.id, body]))
+    const bodies = new Map<string, BodyMeta>()
+    const bodyLookup = physicsBodies.current
+    const savePositions = () => {
+      if (!iconPositionPersistenceRef.current?.enabled) return
+      const positions = Object.fromEntries(Array.from(bodies, ([id, { body }]) => [id, {
+        x: Math.min(1, Math.max(0, body.position.x / viewportWidth)),
+        y: Math.min(1, Math.max(0, body.position.y / viewportHeight)),
+        angle: Number.isFinite(body.angle) ? body.angle : 0,
+      }]))
+      // Cached dimensions survive React clearing the stage ref during unmount.
+      saveIconPositionsRef.current?.('matter', positions)
+    }
+    saveCurrentPositionsRef.current = savePositions
 
     const wallThickness = 80
-    const walls = [
-      Matter.Bodies.rectangle(-wallThickness / 2, stage.clientHeight / 2, wallThickness, stage.clientHeight * 2, { isStatic: true }),
-      Matter.Bodies.rectangle(stage.clientWidth + wallThickness / 2, stage.clientHeight / 2, wallThickness, stage.clientHeight * 2, { isStatic: true }),
-      Matter.Bodies.rectangle(stage.clientWidth / 2, stage.clientHeight + wallThickness / 2, stage.clientWidth * 2, wallThickness, { isStatic: true }),
+    const createWalls = () => [
+      Matter.Bodies.rectangle(-wallThickness / 2, viewportHeight / 2, wallThickness, viewportHeight * 2, { isStatic: true }),
+      Matter.Bodies.rectangle(viewportWidth + wallThickness / 2, viewportHeight / 2, wallThickness, viewportHeight * 2, { isStatic: true }),
+      Matter.Bodies.rectangle(viewportWidth / 2, viewportHeight + wallThickness / 2, viewportWidth * 2, wallThickness, { isStatic: true }),
       // Keep the top boundary outside the visible stage so objects can enter from above.
-      Matter.Bodies.rectangle(stage.clientWidth / 2, -1400, stage.clientWidth * 2, wallThickness, { isStatic: true }),
+      Matter.Bodies.rectangle(viewportWidth / 2, -1400, viewportWidth * 2, wallThickness, { isStatic: true }),
     ]
+    let walls = createWalls()
     Matter.Composite.add(engine.world, walls)
 
     const syncIcons = () => {
-      for (const { body, entry, size } of bodies) {
+      for (const { body, entry, size } of bodies.values()) {
         const icon = iconRefs.current.get(entry.site.id)
         if (!icon) continue
         icon.style.width = `${size}px`
@@ -158,27 +209,90 @@ export default function MatterTemplate({
       }
     }
 
+    reconcileRef.current = (entries) => {
+      const ids = new Set(entries.map(entry => entry.site.id))
+      for (const [id, meta] of bodies) {
+        if (ids.has(id)) continue
+        if (activeDrag.current?.body === meta.body) {
+          const drag = activeDrag.current
+          if (drag.captureTarget.hasPointerCapture(drag.pointerId)) drag.captureTarget.releasePointerCapture(drag.pointerId)
+          removeGlobalDragListeners.current?.()
+          removeGlobalDragListeners.current = null
+          activeDrag.current = null
+          onInteractionStateChange({ dragging: false, settling: false })
+        }
+        Matter.Composite.remove(engine.world, meta.body)
+        bodies.delete(id)
+        bodyLookup.delete(id)
+      }
+      entries.forEach((entry, index) => {
+        const existing = bodies.get(entry.site.id)
+        if (existing) {
+          if (existing.entry.module.accent !== entry.module.accent) {
+            Object.assign(existing.body.render, {
+              fillStyle: hexToRgba(entry.module.accent, 0.38), strokeStyle: entry.module.accent,
+            })
+          }
+          existing.entry = entry
+        } else {
+          const persistence = iconPositionPersistenceRef.current
+          const meta = createBody(entry, index, viewportWidth, viewportHeight,
+            persistence?.enabled ? persistence.positions[entry.site.id] : undefined)
+          bodies.set(entry.site.id, meta)
+          bodyLookup.set(entry.site.id, meta.body)
+          Matter.Composite.add(engine.world, meta.body)
+        }
+      })
+      syncIcons()
+    }
+
     syncIconsRef.current = syncIcons
     Matter.Events.on(engine, 'afterUpdate', syncIcons)
 
     const resize = () => {
-      const width = stage.clientWidth
-      const height = stage.clientHeight
+      if (disposed) return
+      const oldWidth = viewportWidth
+      const oldHeight = viewportHeight
+      const width = Math.max(1, stage.clientWidth)
+      const height = Math.max(1, stage.clientHeight)
+      if (width === oldWidth && height === oldHeight) return
+      viewportWidth = width
+      viewportHeight = height
       Matter.Render.setSize(render, width, height)
-      Matter.Body.setPosition(walls[0], { x: -wallThickness / 2, y: height / 2 })
-      Matter.Body.setPosition(walls[1], { x: width + wallThickness / 2, y: height / 2 })
-      Matter.Body.setPosition(walls[2], { x: width / 2, y: height + wallThickness / 2 })
-      Matter.Body.setPosition(walls[3], { x: width / 2, y: -1400 })
+      walls.forEach(wall => Matter.Composite.remove(engine.world, wall))
+      walls = createWalls()
+      Matter.Composite.add(engine.world, walls)
+      if (iconPositionPersistenceRef.current?.enabled) {
+        for (const body of bodyLookup.values()) {
+          Matter.Body.setPosition(body, {
+            x: body.position.x * width / oldWidth,
+            y: body.position.y * height / oldHeight,
+          })
+          // New sites still enter from above rather than being pulled into view by resize.
+          if (body.position.y >= 0) clampBodyToStage(body, width, height)
+        }
+        savePositions()
+      }
       syncIcons()
     }
     const observer = new ResizeObserver(resize)
     observer.observe(stage)
+    const saveWhenHidden = () => {
+      if (document.visibilityState !== 'visible') savePositions()
+    }
+    const saveOnPageHide = () => savePositions()
+    document.addEventListener('visibilitychange', saveWhenHidden)
+    window.addEventListener('pagehide', saveOnPageHide)
 
     Matter.Render.run(render)
     Matter.Runner.run(runner, engine)
     syncIcons()
 
     return () => {
+      disposed = true
+      savePositions()
+      document.removeEventListener('visibilitychange', saveWhenHidden)
+      window.removeEventListener('pagehide', saveOnPageHide)
       observer.disconnect()
       Matter.Events.off(engine, 'afterUpdate', syncIcons)
       Matter.Render.stop(render)
@@ -186,16 +300,25 @@ export default function MatterTemplate({
       removeGlobalDragListeners.current?.()
       removeGlobalDragListeners.current = null
       if (activeDrag.current) {
+        const drag = activeDrag.current
+        if (drag.captureTarget.hasPointerCapture(drag.pointerId)) drag.captureTarget.releasePointerCapture(drag.pointerId)
         activeDrag.current = null
         onInteractionStateChange({ dragging: false, settling: false })
       }
-      physicsBodies.current.clear()
+      saveCurrentPositionsRef.current = () => {}
+      reconcileRef.current = null
+      bodies.clear()
+      bodyLookup.clear()
       syncIconsRef.current = null
       Matter.Composite.clear(engine.world, false)
       Matter.Engine.clear(engine)
       render.canvas.remove()
     }
-  }, [onInteractionStateChange, sites])
+  }, [onInteractionStateChange, persistenceEnabled])
+
+  useEffect(() => {
+    reconcileRef.current?.(sites)
+  }, [sites, persistenceEnabled, onInteractionStateChange])
 
   const getPointerPosition = (event: { clientX: number; clientY: number }) => {
     const stage = stageRef.current
@@ -216,6 +339,9 @@ export default function MatterTemplate({
     }
     if (!drag.moved && Math.hypot(point.x - drag.startX, point.y - drag.startY) > 3) {
       drag.moved = true
+      // 按下只表示候选手势；真正移动后才上报拖拽，否则 App 的
+      // onClickCapture 会把普通链接点击当成拖拽误触拦截。
+      onInteractionStateChange({ dragging: true, settling: false })
     }
     Matter.Body.setPosition(drag.body, nextPosition)
     Matter.Body.setVelocity(drag.body, { x: 0, y: 0 })
@@ -230,21 +356,15 @@ export default function MatterTemplate({
     removeGlobalDragListeners.current?.()
     removeGlobalDragListeners.current = null
 
-    const icon = iconRefs.current.get(drag.siteId)
-    if (icon?.hasPointerCapture(drag.pointerId)) icon.releasePointerCapture(drag.pointerId)
+    if (drag.captureTarget.hasPointerCapture(drag.pointerId)) drag.captureTarget.releasePointerCapture(drag.pointerId)
 
     if (drag.moved || cancelled) {
       // A cancelled pointer sequence must never be reinterpreted as a tap.
       // Suppress any synthetic click that the browser may dispatch after the
       // pointer is interrupted by blur, visibility changes, or pointercancel.
       suppressClickUntil.current = performance.now() + 280
-    } else {
-      // Pointer capture prevents browsers from consistently synthesizing an
-      // anchor click. Preserve normal navigation explicitly for a simple tap.
-      skipClickVisitUntil.current = performance.now() + 280
-      actions.visitSite(drag.siteId)
-      icon?.querySelector<HTMLAnchorElement>('a')?.click()
     }
+    saveCurrentPositionsRef.current()
     onInteractionStateChange({ dragging: false, settling: false })
   }
 
@@ -255,12 +375,15 @@ export default function MatterTemplate({
     const siteId = event.currentTarget.dataset.siteId ?? ''
     const body = physicsBodies.current.get(siteId)
     const point = getPointerPosition(event)
-    if (!body || !point || activeDrag.current) return
+    const anchor = event.currentTarget.querySelector<HTMLAnchorElement>('a')
+    if (!body || !point || !anchor || activeDrag.current) return
 
+    // 新的主动按下不应继承上一次拖拽/取消的 trailing-click 抑制。
+    suppressClickUntil.current = 0
     activeDrag.current = {
       body,
-      siteId,
       pointerId: event.pointerId,
+      captureTarget: anchor,
       offsetX: body.position.x - point.x,
       offsetY: body.position.y - point.y,
       startX: point.x,
@@ -272,10 +395,10 @@ export default function MatterTemplate({
     Matter.Body.setAngularVelocity(body, 0)
     event.preventDefault()
 
-    // Keep receiving pointermove/up after the pointer leaves the icon. Relying
-    // only on React events from the moving element makes the body appear frozen.
+    // 由真实链接捕获指针，让鼠标和触摸的原生 click 都落在链接内。
+    // 不再补发 anchor.click()，避免触摸原生 click 再次打开页面并重复计数。
     try {
-      event.currentTarget.setPointerCapture(event.pointerId)
+      anchor.setPointerCapture(event.pointerId)
     } catch {
       // Synthetic test events do not own a browser pointer.
     }
@@ -320,7 +443,6 @@ export default function MatterTemplate({
       document.removeEventListener('mouseleave', onDocumentMouseLeave, true)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-    onInteractionStateChange({ dragging: true, settling: false })
     syncIconsRef.current?.()
   }
 
@@ -375,7 +497,6 @@ export default function MatterTemplate({
                     event.stopPropagation()
                     return
                   }
-                  if (now < skipClickVisitUntil.current) return
                   actions.visitSite(site.id)
                 }}
               >

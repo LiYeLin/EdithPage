@@ -40,6 +40,7 @@ const matter = vi.hoisted(() => {
     },
     Composite: {
       add: vi.fn(),
+      remove: vi.fn(),
       clear: vi.fn(),
     },
     Events: {
@@ -170,18 +171,73 @@ describe('MatterTemplate', () => {
     expect(editingActions.removeSite).toHaveBeenCalledWith('tools', 'alpha')
   })
 
-  it('简单 pointer tap 显式访问并触发锚点点击，但只记录一次访问', () => {
+  it('普通点击及阈值内抖动不报告拖拽，访问只由锚点点击记录一次', () => {
     const templateActions = actions()
-    render(<MatterTemplate {...props({ actions: templateActions })} />)
+    const report = vi.fn()
+    render(<MatterTemplate {...props({ actions: templateActions, onInteractionStateChange: report })} />)
+    report.mockClear()
     const link = screen.getByRole('link', { name: 'Alpha，打开站点' }) as HTMLAnchorElement
-    const click = vi.spyOn(link, 'click').mockImplementation(() => {})
+    const click = vi.spyOn(link, 'click')
+    vi.mocked(link.hasPointerCapture).mockReturnValue(true)
 
     begin()
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: 112, clientY: 130, bubbles: true }))
+    expect(report).not.toHaveBeenCalled()
+    expect(templateActions.visitSite).not.toHaveBeenCalled()
+    expect(link.setPointerCapture).toHaveBeenCalledWith(7)
+    expect(vi.mocked(link.setPointerCapture).mock.contexts.at(-1)).toBe(link)
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
+    expect(link.releasePointerCapture).toHaveBeenCalledWith(7)
+    expect(vi.mocked(link.releasePointerCapture).mock.contexts.at(-1)).toBe(link)
+    expect(click).not.toHaveBeenCalled()
+    expect(templateActions.visitSite).not.toHaveBeenCalled()
+    fireEvent.click(link)
 
     expect(templateActions.visitSite).toHaveBeenCalledTimes(1)
     expect(templateActions.visitSite).toHaveBeenCalledWith('alpha')
-    expect(click).toHaveBeenCalledTimes(1)
+    expect(report).not.toHaveBeenCalledWith({ dragging: true, settling: false })
+  })
+
+  it('锚点点击被上层拦截时不会提前记录访问', () => {
+    const templateActions = actions()
+    render(<div onClickCapture={event => { event.preventDefault(); event.stopPropagation() }}>
+      <MatterTemplate {...props({ actions: templateActions })} />
+    </div>)
+    const link = screen.getByRole('link', { name: 'Alpha，打开站点' }) as HTMLAnchorElement
+
+    begin()
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
+    fireEvent.click(link)
+    expect(templateActions.visitSite).not.toHaveBeenCalled()
+  })
+
+  it.each(['alpha', 'beta'])('拖拽后立即重新按下 %s 可正常点击，不继承上次手势的抑制窗口', (siteId) => {
+    const templateActions = actions()
+    vi.spyOn(performance, 'now').mockReturnValue(1_000)
+    render(<MatterTemplate {...props({ actions: templateActions })} />)
+    begin()
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: 160, clientY: 180, bubbles: true }))
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
+    expect(templateActions.visitSite).not.toHaveBeenCalled()
+
+    const target = icon(siteId === 'alpha' ? 'Alpha' : 'Beta')
+    begin(target)
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
+    expect(fireEvent.click(target.querySelector('a')!)).toBe(true)
+    expect(templateActions.visitSite).toHaveBeenCalledExactlyOnceWith(siteId)
+  })
+
+  it('快速点击不同站点时各记录一次，不共用跳过访问的计时窗口', () => {
+    const templateActions = actions()
+    vi.spyOn(performance, 'now').mockReturnValue(1_000)
+    render(<MatterTemplate {...props({ actions: templateActions })} />)
+    begin()
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
+    fireEvent.click(icon().querySelector('a')!)
+    begin(icon('Beta'))
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
+    fireEvent.click(icon('Beta').querySelector('a')!)
+    expect(vi.mocked(templateActions.visitSite).mock.calls).toEqual([['alpha'], ['beta']])
   })
 
   it('拖拽通过全局 pointermove 更新位置，结束后释放并抑制 trailing click', () => {
@@ -193,8 +249,9 @@ describe('MatterTemplate', () => {
     const link = screen.getByRole('link', { name: 'Alpha，打开站点' })
 
     begin()
-    expect(report).toHaveBeenLastCalledWith({ dragging: true, settling: false })
+    expect(report).not.toHaveBeenCalled()
     window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: 160, clientY: 180, bubbles: true, cancelable: true }))
+    expect(report).toHaveBeenCalledExactlyOnceWith({ dragging: true, settling: false })
     expect(matter.Body.setPosition).toHaveBeenCalled()
     expect(matter.Body.setVelocity).toHaveBeenLastCalledWith(expect.anything(), { x: 0, y: 0 })
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
@@ -233,6 +290,7 @@ describe('MatterTemplate', () => {
     render(<MatterTemplate {...props({ onInteractionStateChange: report })} />)
     report.mockClear()
     begin()
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: 160, clientY: 180, bubbles: true }))
     const related = document.createElement('div')
     document.body.append(related)
     document.dispatchEvent(new PointerEvent('pointerout', { pointerId: 7, bubbles: true, relatedTarget: related }))
@@ -255,6 +313,7 @@ describe('MatterTemplate', () => {
     expect(report).not.toHaveBeenCalled()
 
     begin(icon(), 3)
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 3, clientX: 160, clientY: 180, bubbles: true }))
     fireEvent.pointerDown(icon('Beta'), { pointerId: 4, pointerType: 'mouse', button: 0, clientX: 210, clientY: 230 })
     expect(report).toHaveBeenCalledTimes(1)
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 4, bubbles: true }))
@@ -269,9 +328,10 @@ describe('MatterTemplate', () => {
     const observer = Observer.instances[0]
     matter.Render.setSize.mockClear()
     matter.Body.setPosition.mockClear()
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 900 })
     observer.callback([], observer as unknown as ResizeObserver)
-    expect(matter.Render.setSize).toHaveBeenCalledWith(expect.anything(), 800, 600)
-    expect(matter.Body.setPosition).toHaveBeenCalledTimes(4)
+    expect(matter.Render.setSize).toHaveBeenCalledWith(expect.anything(), 900, 600)
+    expect(matter.Composite.remove).toHaveBeenCalledTimes(4)
 
     begin()
     report.mockClear()
@@ -292,6 +352,7 @@ describe('MatterTemplate', () => {
     expect(screen.getByText('还没有网站，打开编辑模式添加一个吧')).not.toBeNull()
     expect(screen.queryByLabelText(/物理图标$/)).toBeNull()
     const firstAdd = matter.Composite.add.mock.calls[0]?.[1]
-    expect(firstAdd).toEqual([])
+    expect(firstAdd).toHaveLength(4) // Boundaries only; no icon bodies.
+    expect(matter.Composite.add).toHaveBeenCalledTimes(1)
   })
 })

@@ -2,6 +2,7 @@
 
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getIconPositionPersistence } from '../src/templates/config'
 import { usePersistentConfig } from '../src/hooks/usePersistentConfig'
 import type { TemplateDefinition } from '../src/templates/types'
 import type { NavigationConfig } from '../src/types'
@@ -149,6 +150,23 @@ describe('usePersistentConfig 初始化', () => {
 
     expect(result.current.config).toEqual(CUSTOM_CONFIG)
     expect(result.current.storageError).toBeNull()
+  })
+
+  it('恢复缺少模板 ID 的旧配置：保留用户内容，仅补默认模板 ID', () => {
+    const legacyConfig = {
+      accent: CUSTOM_CONFIG.accent,
+      modules: CUSTOM_CONFIG.modules,
+    }
+    saveRaw(legacyConfig)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+
+    const { result } = renderHook(() => usePersistentConfig(catalog))
+
+    expect(result.current.config).toEqual({ ...legacyConfig, templateId: 'bubble' })
+    expect(result.current.config.modules).toEqual(CUSTOM_CONFIG.modules)
+    expect(result.current.config.accent).toBe(CUSTOM_CONFIG.accent)
+    expect(setItem).not.toHaveBeenCalled()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify(legacyConfig))
   })
 
   it('未知模板 ID 回退为 bubble，但保留用户模块、站点和配色', () => {
@@ -368,5 +386,57 @@ describe('usePersistentConfig 更新与持久化', () => {
     expect(setItem).toHaveBeenCalledTimes(1)
     expect(setItem).toHaveBeenCalledWith(STORAGE_KEY, JSON.stringify(expected))
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual(expected)
+  })
+})
+
+
+describe('图标位置配置兼容', () => {
+  it('旧配置保持关闭且加载不改写原始 localStorage', () => {
+    saveRaw(CUSTOM_CONFIG)
+    const original = localStorage.getItem(STORAGE_KEY)
+    const write = vi.spyOn(Storage.prototype, 'setItem')
+    const { result } = renderHook(() => usePersistentConfig(catalog))
+    expect(result.current.config.iconPositionPersistence).toBeUndefined()
+    for (const id of ['matter', 'beijing'] as const) {
+      expect(getIconPositionPersistence(result.current.config, id)).toEqual({ enabled: false, positions: {} })
+    }
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(original)
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('只忽略非法位置，不丢弃模块或另一个模板的数据', () => {
+    const valid = { x: 0.2, y: 0.5, angle: 0.8 }
+    const other = { x: 0.6, y: 0.7, angle: -1.2 }
+    saveRaw({ ...CUSTOM_CONFIG, iconPositionPersistence: {
+      matter: { enabled: true, positions: { valid, null: null, array: [], text: { ...valid, x: '0.2' }, range: { ...valid, y: 2 }, angle: { ...valid, angle: null } } },
+      beijing: { enabled: true, positions: { other } },
+    } })
+    const { result } = renderHook(() => usePersistentConfig(catalog))
+    expect(result.current.config.modules).toEqual(CUSTOM_CONFIG.modules)
+    expect(result.current.config.iconPositionPersistence).toEqual({
+      matter: { enabled: true, positions: { valid } }, beijing: { enabled: true, positions: { other } },
+    })
+  })
+
+  it.each([null, [], false, 'invalid', { matter: null, beijing: { enabled: 'true', positions: [] } }])('损坏的可选位置设置不影响加载：%j', value => {
+    saveRaw({ ...CUSTOM_CONFIG, iconPositionPersistence: value })
+    const { result } = renderHook(() => usePersistentConfig(catalog))
+    expect(result.current.config.modules).toEqual(CUSTOM_CONFIG.modules)
+    expect(getIconPositionPersistence(result.current.config, 'matter').enabled).toBe(false)
+    expect(getIconPositionPersistence(result.current.config, 'beijing').enabled).toBe(false)
+  })
+
+  it('恢复默认内容清除两个模板的位置设置且同步写入存储', () => {
+    saveRaw({ ...CUSTOM_CONFIG, iconPositionPersistence: {
+      matter: { enabled: true, positions: { a: { x: 0.5, y: 0.6, angle: 0 } } },
+      beijing: { enabled: false, positions: { a: { x: 0.2, y: 0.3, angle: 0.4 } } },
+    } })
+    const { result } = renderHook(() => usePersistentConfig(catalog))
+    act(() => {
+      result.current.resetConfig()
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).iconPositionPersistence).toBeUndefined()
+    })
+    expect(result.current.config.iconPositionPersistence).toBeUndefined()
+    expect(result.current.config.templateId).toBe(CUSTOM_CONFIG.templateId)
   })
 })

@@ -6,7 +6,7 @@
 
 在 `src/templates/types.ts` 实现 `NavigationTemplateProps`。模板只读 `modules` 与 `frequentSites`，使用 `actions` 执行编辑、访问和跨分类移动。`revealSite` 是一次性展示请求；模板可以自行定位、分页或滚动。
 
-`onInteractionStateChange` 只报告 `{ dragging, settling }`：输入拖拽期间设 `dragging: true`，释放后如果视觉仍未完成则设 `settling: true`，收尾或取消时恢复两个 `false`。不要上报逐帧位置，也不要把模板私有坐标写入配置。公共层会在这两种状态下拒绝模板切换。
+`onInteractionStateChange` 只报告 `{ dragging, settling }`：输入拖拽期间设 `dragging: true`，释放后如果视觉仍未完成则设 `settling: true`，收尾或取消时恢复两个 `false`。不要通过交互状态上报逐帧位置。公共层会在这两种状态下拒绝模板切换。
 
 模板还可以在注册信息中声明 `appearance`，由 App 全局壳层应用到整页背景：`backgroundImage` 使用本地 `public` 资源路径，`backgroundPosition` 可选。背景不属于 `NavigationTemplateProps`，也不应在模板组件内部重复渲染；未声明时使用 `/edith-landscape.jpg` 作为全局兜底。
 
@@ -28,7 +28,7 @@
 
 - `npm run lint`
 - `npx tsc -b --pretty false`
-- `npm test`：Node 原有测试框架，包含注册表/兼容/移动/液态会话测试。
+- `npm test`：Vitest 单元/组件测试，包含注册表、兼容、移动、液态会话与物理地形测试。
 - `npm run test:e2e -- --workers=1`：Playwright 使用本机 Google Chrome（`channel: chrome`），自动启动 `127.0.0.1:4179` 的 Vite 服务。需要事先安装 Google Chrome。
 - `npm run build -- --outDir /private/tmp/edith-template-phase1-dist --emptyOutDir`
 
@@ -36,6 +36,22 @@ E2E 测试只对外部图标、访问目的页、Vercel 分析脚本使用响应
 
 ## 当前阶段范围
 
-本阶段已包含 Matter.js 物理图标模板，用于验证随机碰撞、堆叠和拖拽交互。它与 Bubble 模板共享公共配置、编辑操作、访问统计、持久化和撤销能力；物理世界中的位置和速度仍属于模板私有运行态，不写入配置。
+本阶段已包含 Matter.js 物理图标模板，用于验证随机碰撞、堆叠和拖拽交互。它与 Bubble 模板共享公共配置、编辑操作、访问统计、持久化和撤销能力；速度、约束等仍属于模板私有运行态；用户开启“保存图标位置”后，只通过公共动作保存位置与角度。
 
-本阶段仍不包含新视觉方向、分类重排/同分类排序、远程模板安装、全局状态库或模板专属持久化配置。公共层不要求任何新模板使用气泡站点组件；可以单独复用 `SiteIcon`，也可以自行实现可访问的站点外观。
+本阶段仍不包含分类重排/同分类排序、远程模板安装或全局状态库。公共层不要求任何新模板使用气泡站点组件；可以单独复用 `SiteIcon`，也可以自行实现可访问的站点外观。
+
+
+## 北京地标模板
+
+`beijing` 是独立动态加载的入口，目录为 `src/templates/beijing/`。它复用公共 `SiteIcon`、`FrequentSiteStrip` 和编辑动作，不依赖 `matter` 模板私有组件或样式，与物理图标模板共用位置保存协议和通用设置抽屉。
+
+三座线稿建筑与静态碰撞体共用一个响应式布局结果。物理运行时以站点 ID 增量同步，不因名称编辑重启；仅真实拖拽报告切换保护，自然下落不阻断切换。失败/减少动态回退为静态列表，暂停和清理由模板运行时集中管理。素材和测试细节见 `public/terrain/README.md`。
+
+
+## 可选图标位置持久化
+
+通用设置抽屉仅对 `matter` / `beijing` 显示“保存图标位置”。`NavigationConfig.iconPositionPersistence` 下的两个同名槽位各自包含 `enabled` 和按站点 ID 索引的 `positions`。缺失字段默认关闭；加载旧配置不主动改写存储；非法坐标单独忽略，不影响共享内容。
+
+模板接收当前槽位，通过 `actions.saveIconPositions(templateId, positions)` 提交完整快照，App 过滤非法/已删除站点并由 `usePersistentConfig` 同步写入原配置键。坐标为图标中心点相对舞台宽高的比例，`angle` 为弧度。只在拖拽释放、页面隐藏、`pagehide`、尺寸变化和卸载时保存，不逐帧写入。重复快照不再次写入。
+
+关闭后忽略但保留旧位置，再次打开可恢复；恢复默认内容会清除两个槽位。站点名称/分类变化不会重建已有物理 body，新站点仍从顶部掉落；下一次快照清理删除的 ID。窗口变化按相对坐标缩放，并校正边界（北京模板同时校正建筑碰撞）。恢复后初速度归零，仍支持正常物理交互；速度和碰撞约束不持久化。

@@ -2,6 +2,7 @@ import { Check, Plus, RotateCcw, Settings2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { EditorTarget, NavigationConfig } from '../types'
+import { getIconPositionPersistence } from '../templates/config'
 
 type SettingsDrawerProps = {
   open: boolean
@@ -164,6 +165,8 @@ export function SettingsDrawer({
 
   const isEditingSite = Boolean(editingSiteContext)
   const isEditingModule = Boolean(editingModule)
+  const positionTemplate = config.templateId === 'matter' || config.templateId === 'beijing' ? config.templateId : null
+  const iconPositionPersistence = positionTemplate ? getIconPositionPersistence(config, positionTemplate) : null
   const drawerTitle = isEditingSite ? '编辑站点' : isEditingModule ? '编辑分类' : '定制工作台'
   const drawerDescription = isEditingSite
     ? '修改名称、网址或所属分类'
@@ -265,6 +268,37 @@ export function SettingsDrawer({
 
               {!isEditingSite && (
                 <>
+                  {positionTemplate && iconPositionPersistence && (
+                    <section className="settings-section icon-position-settings">
+                      <span className="settings-label">图标布局</span>
+                      <div className="icon-position-setting-row">
+                        <div>
+                          <strong>保存图标位置</strong>
+                          <p id="icon-position-description">{iconPositionPersistence.enabled ? '开启：刷新后恢复上次保存的位置。' : '关闭：刷新后图标重新掉落。'}</p>
+                        </div>
+                        <button
+                          className={`settings-switch${iconPositionPersistence.enabled ? ' is-on' : ''}`}
+                          type="button"
+                          role="switch"
+                          aria-checked={iconPositionPersistence.enabled}
+                          aria-label="保存图标位置"
+                          aria-describedby="icon-position-description"
+                          onClick={() => onChange({
+                            ...config,
+                            iconPositionPersistence: {
+                              ...config.iconPositionPersistence,
+                              [positionTemplate]: {
+                                enabled: !iconPositionPersistence.enabled,
+                                positions: iconPositionPersistence.positions,
+                              },
+                            },
+                          })}
+                        >
+                          <span aria-hidden="true" />
+                        </button>
+                      </div>
+                    </section>
+                  )}
                   <section className="settings-section">
                     <span className="settings-label">新建分类</span>
                     <div className="inline-form">

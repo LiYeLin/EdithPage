@@ -1,6 +1,6 @@
 import type { TemplateDefinition, TemplateInteractionState } from './templates/types'
 import { templates as productionTemplates } from './templates/registry'
-import { canSwitchTemplate, getTemplateAppearance, selectTemplate } from './templates/config'
+import { canSwitchTemplate, getIconPositionPersistence, getTemplateAppearance, normalizeIconPositions, selectTemplate } from './templates/config'
 import { TemplateHost } from './templates/TemplateHost'
 import { useTemplateSelection } from './templates/useTemplateSelection'
 import { TemplatePicker } from './components/TemplatePicker'
@@ -11,7 +11,7 @@ import { SearchDeck } from './components/SearchDeck'
 import { SettingsDrawer } from './components/SettingsDrawer'
 import { searchEngines } from './data/defaultConfig'
 import { usePersistentConfig } from './hooks/usePersistentConfig'
-import type { EditorTarget, Module, SearchEngine, Site } from './types'
+import type { EditorTarget, IconPosition, Module, SearchEngine, Site } from './types'
 import { moveSite, type SiteMove } from './utils/moveSite'
 
 const ENGINE_STORAGE_KEY = 'edith-navigation-search-engine-v1'
@@ -283,6 +283,32 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
     return moved
   }
 
+  const saveIconPositions = useCallback((templateId: 'matter' | 'beijing', positions: Record<string, IconPosition>) => {
+    setConfig(current => {
+      const configured = current.iconPositionPersistence?.[templateId]
+      if (!configured?.enabled) return current
+      const siteIds = new Set(current.modules.flatMap(module => module.sites.map(site => site.id)))
+      const nextPositions = Object.fromEntries(
+        Object.entries(normalizeIconPositions(positions)).filter(([siteId]) => siteIds.has(siteId)),
+      )
+      if (Object.keys(configured.positions).length === Object.keys(nextPositions).length
+        && Object.entries(nextPositions).every(([id, position]) => {
+          const previous = configured.positions[id]
+          return previous?.x === position.x && previous.y === position.y && previous.angle === position.angle
+        })) return current
+      return {
+        ...current,
+        iconPositionPersistence: {
+          ...current.iconPositionPersistence,
+          [templateId]: {
+            enabled: configured.enabled,
+            positions: nextPositions,
+          },
+        },
+      }
+    })
+  }, [setConfig])
+
   const undoChange = () => {
     if (!undoAction) return
     if (undoTimerRef.current !== null) window.clearTimeout(undoTimerRef.current)
@@ -321,6 +347,10 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
     setUndoAction(null)
     undoTimerRef.current = null
   }
+
+  const iconPositionPersistence = config.templateId === 'matter' || config.templateId === 'beijing'
+    ? getIconPositionPersistence(config, config.templateId)
+    : undefined
 
   const drawerKey = editingTarget?.type === 'site'
     ? `site-${editingTarget.moduleId}-${editingTarget.siteId}`
@@ -382,11 +412,11 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
         </section>
 
         <TemplateHost active={selection.active} error={selection.error} retry={selection.retryInitial} modules={config.modules} frequentSites={frequentSites} editing={editing}
-          interactionBlocked={settingsOpen || pickerOpen || selection.loading} revealSite={revealSite}
+          interactionBlocked={settingsOpen || pickerOpen || selection.loading} revealSite={revealSite} iconPositionPersistence={iconPositionPersistence}
           onInteractionStateChange={handleInteractionStateChange}
           actions={{ enterEditMode, openSettings: openGeneralSettings, addSite: openAddSite,
             edit: (target) => target.type === 'site' ? openEditSite(target.moduleId, target.siteId) : openEditModule(target.moduleId),
-            removeSite, removeModule, moveSite: moveSiteToModule, visitSite: recordVisit }} />
+            removeSite, removeModule, moveSite: moveSiteToModule, visitSite: recordVisit, saveIconPositions }} />
       </main>
 
       {undoAction ? (

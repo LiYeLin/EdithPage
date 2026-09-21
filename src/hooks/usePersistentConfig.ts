@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { defaultConfig } from '../data/defaultConfig'
-import { isNavigationConfig, normalizeTemplateConfig, resetContent } from '../templates/config'
+import { normalizeTemplateConfig, resetContent } from '../templates/config'
 import type { TemplateDefinition } from '../templates/types'
 import type { NavigationConfig } from '../types'
 
@@ -10,7 +10,7 @@ function loadConfig(catalog: readonly TemplateDefinition[]): NavigationConfig {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     const parsed: unknown = saved ? JSON.parse(saved) : structuredClone(defaultConfig)
-    return normalizeTemplateConfig(isNavigationConfig(parsed) ? parsed : structuredClone(defaultConfig), catalog)
+    return normalizeTemplateConfig(parsed, catalog)
   } catch {
     return structuredClone(defaultConfig)
   }

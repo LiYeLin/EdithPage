@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { EditorTarget, FrequentSiteItem, Module } from '../types'
+import type { EditorTarget, FrequentSiteItem, IconPosition, IconPositionPersistence, Module } from '../types'
 import type { SiteMove } from '../utils/moveSite'
 
 export type TemplateInteractionState = { dragging: boolean; settling: boolean }
@@ -18,6 +18,7 @@ export type NavigationActions = {
   removeModule: (moduleId: string) => void
   moveSite: (move: SiteMove) => boolean
   visitSite: (siteId: string) => void
+  saveIconPositions?: (templateId: 'matter' | 'beijing', positions: Record<string, IconPosition>) => void
 }
 
 export type NavigationTemplateProps = {
@@ -27,6 +28,7 @@ export type NavigationTemplateProps = {
   interactionBlocked: boolean
   revealSite: { moduleId: string; siteId: string } | null
   actions: NavigationActions
+  iconPositionPersistence?: IconPositionPersistence
   onInteractionStateChange: (state: TemplateInteractionState) => void
 }
 

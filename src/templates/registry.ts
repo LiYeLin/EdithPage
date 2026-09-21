@@ -19,6 +19,14 @@ export const templates: readonly TemplateDefinition[] = [
     load: () => import('./matter/MatterTemplate'),
   },
   {
+    id: 'beijing',
+    name: '北京地标',
+    description: '图标落在天坛、故宫和中国尊的建筑线稿上，碰撞并堆叠。',
+    editingHint: '拖动图标探索建筑地形，点击打开站点，编辑模式下可修改或删除',
+    appearance: { backgroundImage: '/terrain/temple-of-heaven.jpg', backgroundPosition: 'center' },
+    load: () => import('./beijing/BeijingTemplate'),
+  },
+  {
     id: 'plain',
     name: '纯净应用网格',
     description: '以简洁的应用图标网格展示当前分类。',

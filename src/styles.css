@@ -463,6 +463,15 @@ main { padding: clamp(20px, calc(37vh - 245px), 300px) 0 26px; }
 }
 .drawer-scroll { height: calc(100% - 78px); padding: 4px 19px 26px; overflow-y: auto; }
 .settings-section { padding: 19px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+
+.icon-position-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.icon-position-setting-row strong { display: block; color: rgba(247,251,249,.92); font-size: 13px; font-weight: 650; }
+.icon-position-setting-row p { margin: 5px 0 0; color: rgba(236,243,239,.5); font-size: 11px; line-height: 1.5; }
+.settings-switch { position: relative; flex: 0 0 auto; width: 44px; height: 25px; padding: 2px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(255,255,255,.09); cursor: pointer; transition: background .2s ease, border-color .2s ease; }
+.settings-switch span { display: block; width: 19px; height: 19px; border-radius: 50%; background: rgba(247,251,249,.9); box-shadow: 0 2px 6px rgba(0,0,0,.24); transform: translateX(0); transition: transform .2s ease, background .2s ease; }
+.settings-switch.is-on { border-color: var(--accent); background: rgba(var(--accent-rgb), .42); }
+.settings-switch.is-on span { background: #07110c; transform: translateX(19px); }
+.settings-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .settings-section label,
 .settings-label { display: block; margin-bottom: 9px; color: rgba(236,243,239,.65); font-size: 9px; font-weight: 700; letter-spacing: .07em; }
 .settings-section input,

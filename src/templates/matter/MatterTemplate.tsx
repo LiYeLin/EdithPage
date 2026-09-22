@@ -358,6 +358,11 @@ export default function MatterTemplate({
 
     if (drag.captureTarget.hasPointerCapture(drag.pointerId)) drag.captureTarget.releasePointerCapture(drag.pointerId)
 
+    // Repeated drag updates zero the body's velocity, so Matter may put it to
+    // sleep while the pointer is held still. Always wake it on release so
+    // gravity resumes even after a long hover in mid-air.
+    Matter.Sleeping.set(drag.body, false)
+
     if (drag.moved || cancelled) {
       // A cancelled pointer sequence must never be reinterpreted as a tap.
       // Suppress any synthetic click that the browser may dispatch after the

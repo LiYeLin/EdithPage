@@ -126,6 +126,27 @@ test('pointer capture keeps the icon following after the cursor leaves it', asyn
   await expect(page.locator('.app')).not.toHaveClass(/is-site-dragging/)
 })
 
+test('图标在空中长时间拖住后松手仍会继续下落', async ({ page }) => {
+  await openMatter(page)
+  const icon = page.locator('.matter-icon-link').first()
+  const start = await center(icon)
+  const target = { x: start.x + 120, y: Math.max(180, start.y - 260) }
+
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(target.x, target.y, { steps: 10 })
+  // Keep sending tiny real pointer movements beyond Matter's default 60-frame
+  // sleep threshold, matching a hand that hovers without being perfectly still.
+  for (let frame = 0; frame < 90; frame += 1) {
+    await page.mouse.move(target.x + (frame % 2 === 0 ? -0.5 : 0.5), target.y)
+    await page.waitForTimeout(17)
+  }
+  await page.mouse.up()
+
+  const released = await center(icon)
+  await expect.poll(async () => (await center(icon)).y - released.y).toBeGreaterThan(80)
+})
+
 test('pointer leaving the browser window releases the active drag', async ({ page }) => {
   await page.addInitScript((value) => {
     localStorage.setItem('edith-navigation-config-v3', JSON.stringify(value))

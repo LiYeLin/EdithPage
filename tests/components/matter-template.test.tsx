@@ -254,7 +254,9 @@ describe('MatterTemplate', () => {
     expect(report).toHaveBeenCalledExactlyOnceWith({ dragging: true, settling: false })
     expect(matter.Body.setPosition).toHaveBeenCalled()
     expect(matter.Body.setVelocity).toHaveBeenLastCalledWith(expect.anything(), { x: 0, y: 0 })
+    matter.Sleeping.set.mockClear()
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }))
+    expect(matter.Sleeping.set).toHaveBeenCalledExactlyOnceWith(expect.anything(), false)
     expect(report).toHaveBeenLastCalledWith({ dragging: false, settling: false })
 
     const trailingClick = new MouseEvent('click', { bubbles: true, cancelable: true })

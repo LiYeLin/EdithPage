@@ -387,6 +387,26 @@ describe('usePersistentConfig 更新与持久化', () => {
     expect(setItem).toHaveBeenCalledWith(STORAGE_KEY, JSON.stringify(expected))
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual(expected)
   })
+
+  it('其他标签页更新配置后同步内存状态，并让后续编辑基于最新值', () => {
+    saveRaw(EXPECTED_DEFAULT_CONFIG)
+    const { result } = renderHook(() => usePersistentConfig(catalog))
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: STORAGE_KEY,
+        newValue: JSON.stringify(CUSTOM_CONFIG),
+        storageArea: localStorage,
+      }))
+    })
+    expect(result.current.config).toEqual(CUSTOM_CONFIG)
+
+    act(() => {
+      result.current.setConfig((current) => ({ ...current, accent: 'mint' }))
+    })
+    expect(result.current.config).toEqual({ ...CUSTOM_CONFIG, accent: 'mint' })
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual({ ...CUSTOM_CONFIG, accent: 'mint' })
+  })
 })
 
 

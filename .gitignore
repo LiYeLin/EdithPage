@@ -1,1 +1,4 @@
 node_modules
+dist/extensions
+dist/extension-app
+artifacts

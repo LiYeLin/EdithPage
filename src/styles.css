@@ -528,6 +528,40 @@ main { padding: clamp(20px, calc(37vh - 245px), 300px) 0 26px; }
 .square-button:disabled { opacity: .38; cursor: not-allowed; }
 .inline-form { display: grid; grid-template-columns: 1fr 42px; gap: 7px; }
 .square-button { display: grid; place-items: center; }
+.settings-help,
+.transfer-status {
+  margin: 0;
+  color: rgba(235,242,238,.5);
+  font-size: 9px;
+  line-height: 1.55;
+}
+.transfer-status { color: rgba(var(--accent-rgb),.85); }
+.data-transfer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.data-transfer-actions button {
+  height: 39px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 10px;
+  color: rgba(235,242,238,.78);
+  background: rgba(255,255,255,.045);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 9px;
+  cursor: pointer;
+}
+.data-transfer-actions button:hover { border-color: rgba(var(--accent-rgb),.4); color: #fff; }
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
 .reset-button {
   width: 100%;
   height: 41px;

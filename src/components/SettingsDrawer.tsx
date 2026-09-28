@@ -1,5 +1,5 @@
-import { Check, Plus, RotateCcw, Settings2, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Check, Download, Plus, RotateCcw, Settings2, Upload, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { EditorTarget, NavigationConfig } from '../types'
 import { getIconPositionPersistence } from '../templates/config'
@@ -12,6 +12,8 @@ type SettingsDrawerProps = {
   onClose: () => void
   onChange: (config: NavigationConfig) => void
   onReset: () => void
+  onExport: () => void
+  onImport: (file: File) => Promise<void>
 }
 
 const accentOptions: Array<{ id: NavigationConfig['accent']; label: string; color: string }> = [
@@ -35,6 +37,8 @@ export function SettingsDrawer({
   onClose,
   onChange,
   onReset,
+  onExport,
+  onImport,
 }: SettingsDrawerProps) {
   const editingSiteContext = editingTarget?.type === 'site'
     ? (() => {
@@ -57,6 +61,8 @@ export function SettingsDrawer({
   const [moduleName, setModuleName] = useState(editingModule?.title ?? '')
   const [moduleDescription, setModuleDescription] = useState(editingModule?.description ?? '')
   const [moduleAccent, setModuleAccent] = useState(editingModule?.accent ?? moduleAccentOptions[0])
+  const [transferStatus, setTransferStatus] = useState<string | null>(null)
+  const importInput = useRef<HTMLInputElement>(null)
 
   const selectedModule = useMemo(
     () => config.modules.find((module) => module.id === selectedModuleId),
@@ -161,6 +167,20 @@ export function SettingsDrawer({
     })
     setSelectedModuleId(id)
     setNewModuleName('')
+  }
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !window.confirm('导入将覆盖当前配置，是否继续？')) return
+
+    setTransferStatus('正在导入…')
+    try {
+      await onImport(file)
+      setTransferStatus('导入成功，正在重新载入。')
+    } catch (error) {
+      setTransferStatus(error instanceof Error ? error.message : '导入失败，请检查备份文件。')
+    }
   }
 
   const isEditingSite = Boolean(editingSiteContext)
@@ -307,6 +327,24 @@ export function SettingsDrawer({
                         <Plus size={18} />
                       </button>
                     </div>
+                  </section>
+
+                  <section className="settings-section">
+                    <span className="settings-label">数据迁移</span>
+                    <p className="settings-help">通过 JSON 文件在网页版、Chrome 和 Edge 之间迁移配置。</p>
+                    <div className="data-transfer-actions">
+                      <button type="button" onClick={onExport}><Download size={15} />导出</button>
+                      <button type="button" onClick={() => importInput.current?.click()}><Upload size={15} />导入</button>
+                    </div>
+                    <input
+                      ref={importInput}
+                      className="visually-hidden"
+                      type="file"
+                      accept="application/json,.json"
+                      aria-label="选择 Edith 备份文件"
+                      onChange={handleImport}
+                    />
+                    {transferStatus && <p className="transfer-status" role="status">{transferStatus}</p>}
                   </section>
 
                   <button className="reset-button" type="button" onClick={onReset}>

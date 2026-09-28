@@ -13,6 +13,8 @@ import { searchEngines } from './data/defaultConfig'
 import { usePersistentConfig } from './hooks/usePersistentConfig'
 import type { EditorTarget, IconPosition, Module, SearchEngine, Site } from './types'
 import { moveSite, type SiteMove } from './utils/moveSite'
+import { createBackup, importBackup } from './platform/backup'
+import { getStoredValue, setStoredValue, subscribeStoredValue, type StorageKey } from './platform/storage'
 
 const ENGINE_STORAGE_KEY = 'edith-navigation-search-engine-v1'
 const USAGE_STORAGE_KEY = 'edith-navigation-usage-v1'
@@ -37,10 +39,18 @@ type UndoAction =
 
 function loadUsageCounts(): Record<string, number> {
   try {
-    const saved = localStorage.getItem(USAGE_STORAGE_KEY)
+    const saved = getStoredValue(USAGE_STORAGE_KEY)
     return saved ? JSON.parse(saved) as Record<string, number> : {}
   } catch {
     return {}
+  }
+}
+
+function persistValue(key: StorageKey, value: string) {
+  try {
+    void setStoredValue(key, value).catch(() => undefined)
+  } catch {
+    // Keep the current session usable when browser storage is unavailable.
   }
 }
 
@@ -56,22 +66,18 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   const interactionRef = useRef(interaction)
   const [engine, setEngine] = useState<SearchEngine>(() => {
     try {
-      return searchEngines.find((item) => item.id === localStorage.getItem(ENGINE_STORAGE_KEY)) ?? searchEngines[0]
+      return searchEngines.find((item) => item.id === getStoredValue(ENGINE_STORAGE_KEY)) ?? searchEngines[0]
     } catch {
       return searchEngines[0]
     }
   })
   const changeEngine = (next: SearchEngine) => {
     setEngine(next)
-    try {
-      localStorage.setItem(ENGINE_STORAGE_KEY, next.id)
-    } catch {
-      // Search remains usable when browser storage is unavailable.
-    }
+    persistValue(ENGINE_STORAGE_KEY, next.id)
   }
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(() => {
-    try { return localStorage.getItem(ONBOARDING_STORAGE_KEY) ? null : 1 } catch { return 1 }
+    try { return getStoredValue(ONBOARDING_STORAGE_KEY) ? null : 1 } catch { return 1 }
   })
   const [editing, setEditing] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -83,6 +89,19 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null)
   const undoPointerRef = useRef<number | null>(null)
   const undoTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const subscriptions = [
+      subscribeStoredValue(ENGINE_STORAGE_KEY, (saved) => {
+        setEngine(searchEngines.find((item) => item.id === saved) ?? searchEngines[0])
+      }),
+      subscribeStoredValue(USAGE_STORAGE_KEY, (saved) => {
+        try { setUsageCounts(saved ? JSON.parse(saved) as Record<string, number> : {}) } catch { /* Ignore invalid external data. */ }
+      }),
+      subscribeStoredValue(ONBOARDING_STORAGE_KEY, (saved) => setOnboardingStep(saved ? null : 1)),
+    ]
+    return () => subscriptions.forEach((unsubscribe) => unsubscribe())
+  }, [])
 
   useEffect(() => () => {
     if (undoTimerRef.current !== null) window.clearTimeout(undoTimerRef.current)
@@ -117,7 +136,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   const recordVisit = useCallback((siteId: string) => {
     setUsageCounts((current) => {
       const next = { ...current, [siteId]: (current[siteId] ?? 0) + 1 }
-      try { localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(next)) } catch { /* Keep visits usable without storage. */ }
+      persistValue(USAGE_STORAGE_KEY, JSON.stringify(next))
       return next
     })
   }, [])
@@ -144,11 +163,11 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   const completeOnboardingAction = useCallback(() => {
     setOnboardingStep((current) => {
       if (!current || current === 1) return current === 1 ? 2 : current
-      if (current === 4) { try { localStorage.setItem(ONBOARDING_STORAGE_KEY, '1') } catch { /* storage unavailable */ } ; return null }
+      if (current === 4) { persistValue(ONBOARDING_STORAGE_KEY, '1'); return null }
       return (current + 1) as OnboardingStep
     })
   }, [])
-  const skipOnboarding = useCallback(() => { try { localStorage.setItem(ONBOARDING_STORAGE_KEY, '1') } catch { /* storage unavailable */ } ; setOnboardingStep(null) }, [])
+  const skipOnboarding = useCallback(() => { persistValue(ONBOARDING_STORAGE_KEY, '1'); setOnboardingStep(null) }, [])
   const enterEditMode = useCallback(() => { setEditing(true); if (onboardingStep === 4) completeOnboardingAction() }, [completeOnboardingAction, onboardingStep])
 
   const finishEditingFromBlankArea = (event: MouseEvent<HTMLDivElement>) => {
@@ -352,6 +371,21 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
     ? getIconPositionPersistence(config, config.templateId)
     : undefined
 
+  const exportSettings = () => {
+    const blob = new Blob([JSON.stringify(createBackup(), null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `edith-backup-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const importSettings = async (file: File) => {
+    await importBackup(await file.text())
+    window.location.reload()
+  }
+
   const drawerKey = editingTarget?.type === 'site'
     ? `site-${editingTarget.moduleId}-${editingTarget.siteId}`
     : editingTarget?.type === 'module'
@@ -454,6 +488,8 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
         onClose={closeSettings}
         onChange={setConfig}
         onReset={resetConfig}
+        onExport={exportSettings}
+        onImport={importSettings}
       />
       {onboardingStep && !pickerOpen && !settingsOpen && <OnboardingGuide step={onboardingStep} onNext={completeOnboardingAction} onSkip={skipOnboarding} />}
     </div>

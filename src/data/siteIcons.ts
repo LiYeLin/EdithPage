@@ -42,6 +42,7 @@ export function getSiteIconSources(domain: string): string[] {
   // Skip that known placeholder instead of relying on img.onError to reject it.
   if (domain.toLowerCase().replace(/^www\./, '') === 'fast.ai') return []
   const local = getLocalSiteIcon(domain)
+  if (import.meta.env.VITE_EXTENSION_BUILD === 'true') return local ? [local] : []
   const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`
   return local ? [local, favicon] : [favicon]
 }

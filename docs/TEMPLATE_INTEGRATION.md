@@ -2,11 +2,15 @@
 
 模板是搜索区以下内容的完整入口，公共层负责数据、编辑表单、访问统计、持久化和撤销。新增模板不需要修改顶部、搜索或站点业务逻辑。
 
+当前生产模板为 `bubble`、`matter`、`beijing`、`plain`，详见 [功能与使用](USER_GUIDE.md)。
+
 ## 公共协议
 
 在 `src/templates/types.ts` 实现 `NavigationTemplateProps`。模板只读 `modules` 与 `frequentSites`，使用 `actions` 执行编辑、访问和跨分类移动。`revealSite` 是一次性展示请求；模板可以自行定位、分页或滚动。
 
 `onInteractionStateChange` 只报告 `{ dragging, settling }`：输入拖拽期间设 `dragging: true`，释放后如果视觉仍未完成则设 `settling: true`，收尾或取消时恢复两个 `false`。不要通过交互状态上报逐帧位置。公共层会在这两种状态下拒绝模板切换。
+
+`iconPositionPersistence` 是物理图标/北京模板的位置配置；需要持久化时调用可选的 `actions.saveIconPositions(templateId, positions)`，坐标需归一化为 0–1。模板不直接写存储。
 
 模板还可以在注册信息中声明 `appearance`，由 App 全局壳层应用到整页背景：`backgroundImage` 使用本地 `public` 资源路径，`backgroundPosition` 可选。背景不属于 `NavigationTemplateProps`，也不应在模板组件内部重复渲染；未声明时使用 `/edith-landscape.jpg` 作为全局兜底。
 
@@ -22,7 +26,7 @@
 
 ## 测试
 
-新增纯逻辑测试验证注册表、配置兼容、切换保护和会话释放；浏览器回归使用 `tests/fixtures` 注入普通列表模板，证明第二个模板不依赖气泡 DOM、Motion、dnd-kit 或液态状态机。生产构建输出使用 `/private/tmp/edith-template-phase1-dist`，避免覆盖已有 `dist` 产物。
+新增纯逻辑测试验证注册表、配置兼容、切换保护和会话释放；浏览器回归使用 `tests/fixtures` 注入普通列表模板，证明第二个模板不依赖气泡 DOM、Motion、dnd-kit 或液态状态机。验证时可用 `npm run build -- --outDir /private/tmp/edith-template-phase1-dist`，避免覆盖已有 `dist` 产物；默认生产构建仍输出 `dist/`。
 
 ## 本地验证命令
 

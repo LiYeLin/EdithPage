@@ -1,0 +1,151 @@
+name: Release browser extensions
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: extension-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate release version
+        id: version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          lock_version="$(node -p "require('./package-lock.json').packages[''].version")"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "package.json version must use X.Y.Z format: $version" >&2
+            exit 1
+          fi
+
+          if [[ "$lock_version" != "$version" ]]; then
+            echo "package-lock.json version ($lock_version) does not match package.json ($version)" >&2
+            exit 1
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            expected_tag="v$version"
+            if [[ "$GITHUB_REF_NAME" != "$expected_tag" ]]; then
+              echo "Tag $GITHUB_REF_NAME does not match package version $expected_tag" >&2
+              exit 1
+            fi
+
+            git fetch origin main --no-tags
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "Release tag must point to a commit on main" >&2
+              exit 1
+            fi
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build web app
+        run: npm run build:web
+
+      - name: Build browser extensions
+        run: npm run build:extension
+
+      - name: Validate browser extensions
+        run: npm run validate:extension
+
+      - name: Verify packages and create checksums
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          packages=(
+            "artifacts/edith-chrome-$VERSION.zip"
+            "artifacts/edith-edge-$VERSION.zip"
+            "artifacts/edith-360-$VERSION.zip"
+            "artifacts/edith-qq-$VERSION.zip"
+          )
+
+          for package in "${packages[@]}"; do
+            test -f "$package"
+            unzip -t "$package"
+          done
+
+          (
+            cd artifacts
+            sha256sum \
+              "edith-chrome-$VERSION.zip" \
+              "edith-edge-$VERSION.zip" \
+              "edith-360-$VERSION.zip" \
+              "edith-qq-$VERSION.zip" \
+              > SHA256SUMS.txt
+          )
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: edith-extensions-${{ steps.version.outputs.version }}
+          path: |
+            artifacts/edith-chrome-${{ steps.version.outputs.version }}.zip
+            artifacts/edith-edge-${{ steps.version.outputs.version }}.zip
+            artifacts/edith-360-${{ steps.version.outputs.version }}.zip
+            artifacts/edith-qq-${{ steps.version.outputs.version }}.zip
+            artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download extension packages
+        uses: actions/download-artifact@v4
+        with:
+          name: edith-extensions-${{ needs.build.outputs.version }}
+          path: artifacts
+
+      - name: Create public GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/edith-chrome-${{ needs.build.outputs.version }}.zip \
+            artifacts/edith-edge-${{ needs.build.outputs.version }}.zip \
+            artifacts/edith-360-${{ needs.build.outputs.version }}.zip \
+            artifacts/edith-qq-${{ needs.build.outputs.version }}.zip \
+            artifacts/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            --latest

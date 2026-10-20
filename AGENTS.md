@@ -2,19 +2,23 @@
 
 ## Product Vision & UX Principles
 
-Build a navigation site with selectable templates and moderate configuration. Include an onboarding page where users choose profession-specific templates, such as programmer or accountant.
+Build Edith as a configurable navigation site whose primary distinction is polished, elegant visual effects and interaction. The product should grow through selectable themes and templates rather than a single fixed appearance.
 
-The defining feature is polished frontend animation and visual effects, with iPhone product pages as the quality benchmark. Treat this as a design target, not an implemented capability. The exact configuration options and additional professions remain to be defined; do not assume unconfirmed requirements.
+Most future themes and templates are expected to explore 2D-physics-inspired interactions, such as bubbles that collide, merge, separate, or respond to dragging. The current implementation supports only the bubble appearance and its related interactions. Do not describe other physics effects, creative appearances, or a general-purpose physics engine as implemented until they exist.
+
+Use the visual finish of iPhone product pages as the quality benchmark: animation should feel deliberate, fluid, and restrained without reducing navigation speed, readability, accessibility, or responsive behavior. Respect `prefers-reduced-motion` and provide usable fallbacks when an effect is unavailable.
+
+Profession-specific templates and onboarding may be explored later, but their exact options and additional professions remain undefined. Do not assume unconfirmed requirements.
 
 ## Project Structure & Module Organization
 
-This repository is currently an empty scaffold: it contains Git metadata but no source, test, asset, or build directories yet. As the project grows, keep responsibilities separated with a predictable layout:
+The repository is a React, TypeScript, and Vite prototype. Keep responsibilities separated using the existing layout:
 
-- `src/` — application or library source code.
-- `tests/` — automated tests, mirroring the relevant `src/` paths.
-- `public/` or `assets/` — static files and other checked-in resources.
-- `scripts/` — repeatable development and maintenance utilities.
-- `docs/` — architecture notes and contributor-facing documentation.
+- `src/` — application source, components, hooks, drag logic, effects, demos, and utilities.
+- `tests/` — Node test-runner coverage for bubble layout, highlights, liquid drag, materials, and site movement.
+- `public/` — checked-in static assets copied into builds.
+- `docs/` — effect specifications and prototype notes.
+- `dist/` — generated production output; do not edit it by hand.
 
 Keep modules focused and generated output separate.
 
@@ -24,6 +28,7 @@ The prototype uses React, TypeScript, and Vite with npm:
 
 - `npm install` — install dependencies.
 - `npm run dev` — start the local development server.
+- `npm test` — run the Node-based test suite.
 - `npm run lint` — run ESLint.
 - `npm run build` — type-check and create the production build.
 - `npm run preview` — preview the production build locally.
@@ -34,11 +39,11 @@ ESLint is configured for TypeScript and React. Run `npm run lint` before handing
 
 ## Testing Guidelines
 
-No automated test framework or coverage threshold is configured yet. When introducing tests, use `tests/` or the framework’s conventional directory and mirror source structure. Name tests after the behavior they verify, such as `navigation-menu.test.ts`. Cover normal behavior, validation failures, and important edge cases. Run the full test command before opening a pull request.
+Tests use the Node.js test runner with TypeScript type stripping. Add tests under `tests/` and name them after the behavior they verify, such as `bubble-layout.test.ts`. Cover normal behavior, validation failures, reduced-motion or fallback behavior where relevant, and important interaction edge cases. Run `npm test`, `npm run lint`, and `npm run build` before handing off changes.
 
 ## Commit & Pull Request Guidelines
 
-There is no Git history yet, so no existing commit convention can be inferred. 提交信息必须使用中文，简洁准确地概括本次变更，例如 `优化导航搜索`。保持每次提交范围聚焦。本仓库禁止向任何远端执行 `git push`；提交完成后只能生成 patch 文件交付或由用户手动应用。每次提交完成后，都必须基于 `origin/main..HEAD` 生成完整 patch 文件，使用 `git format-patch --binary --full-index --stdout origin/main..HEAD > /tmp/edithpage.patch`，并保留该文件，直到远端应用并确认无误。Pull requests should explain the change, include verification commands and results, link related issues when applicable, and include screenshots or recordings for UI changes.
+Use concise imperative commit subjects, for example `Add navigation search`. Keep commits focused. Pull requests should explain the change, include verification commands and results, link related issues when applicable, and include screenshots or recordings for UI changes.
 
 ## Security & Configuration Tips
 

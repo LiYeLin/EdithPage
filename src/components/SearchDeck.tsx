@@ -1,15 +1,17 @@
 import { ArrowUpRight, Search, Sparkles } from 'lucide-react'
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import type { SearchEngine } from '../types'
+import type { SearchSelection } from '../types'
+import { submitSearch } from '../platform/search'
 import { SearchEnginePicker } from './SearchEnginePicker'
 
 type SearchDeckProps = {
-  engine: SearchEngine
-  onEngineChange: (engine: SearchEngine) => void
+  engine: SearchSelection
+  onEngineChange: (engine: SearchSelection) => void
 }
 
 export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
   const [query, setQuery] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -30,15 +32,20 @@ export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
     }
   }, [])
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const value = query.trim()
-    window.open(value ? `${engine.searchUrl}${encodeURIComponent(value)}` : engine.homeUrl, '_blank', 'noopener,noreferrer')
+    setError(null)
+    try {
+      await submitSearch(query, engine)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '搜索未能打开，请使用地址栏搜索。')
+    }
   }
 
   return (
     <section data-editing-interactive className="search-deck" aria-label="搜索">
       <SearchEnginePicker engine={engine} onChange={(item) => {
+        setError(null)
         onEngineChange(item)
         inputRef.current?.focus({ preventScroll: true })
       }} />
@@ -48,7 +55,7 @@ export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
         <input
           ref={inputRef}
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => { setQuery(event.target.value); setError(null) }}
           placeholder={engine.placeholder}
           aria-label={`使用 ${engine.name} 搜索`}
         />
@@ -60,6 +67,7 @@ export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
         </button>
       </form>
       <div className="search-beam" />
+      {error && <div className="search-error" role="alert">{error}</div>}
     </section>
   )
 }

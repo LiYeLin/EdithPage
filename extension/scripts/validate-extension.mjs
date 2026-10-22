@@ -23,7 +23,7 @@ export function validateExtension(folder, browser) {
 
   assert(manifest.manifest_version === 3, `${browser}: 必须使用 Manifest V3`)
   assert(/^\d+(?:\.\d+){0,3}$/.test(manifest.version), `${browser}: 版本号无效`)
-  assert(JSON.stringify(manifest.permissions) === JSON.stringify(['storage']), `${browser}: 权限必须仅包含 storage`)
+  assert(JSON.stringify(manifest.permissions) === JSON.stringify(['storage', 'search']), `${browser}: 权限必须仅包含 storage 和 search`)
   assert(!manifest.host_permissions, `${browser}: 不允许 host_permissions`)
   assert(!manifest.background && !manifest.content_scripts && !manifest.action, `${browser}: 首版不允许后台、内容脚本或工具栏入口`)
   assert(manifest.chrome_url_overrides?.newtab === 'index.html', `${browser}: 新标签页入口无效`)

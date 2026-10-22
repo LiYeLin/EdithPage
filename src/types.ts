@@ -23,6 +23,12 @@ export type SearchEngine = {
   placeholder: string
 }
 
+export type SearchSelection = SearchEngine | {
+  id: 'browser-default'
+  name: string
+  placeholder: string
+}
+
 export type IconPosition = {
   x: number
   y: number

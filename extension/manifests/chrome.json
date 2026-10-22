@@ -4,7 +4,7 @@
   "short_name": "Edith",
   "description": "可配置、轻量且具有流畅交互的新标签页导航。",
   "version": "0.0.0",
-  "permissions": ["storage"],
+  "permissions": ["storage", "search"],
   "chrome_url_overrides": {
     "newtab": "index.html"
   },

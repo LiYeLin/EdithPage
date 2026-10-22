@@ -9,14 +9,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { OnboardingGuide, type OnboardingStep } from './components/OnboardingGuide'
 import { SearchDeck } from './components/SearchDeck'
 import { SettingsDrawer } from './components/SettingsDrawer'
-import { searchEngines } from './data/defaultConfig'
+import { useSearchSelection } from './hooks/useSearchSelection'
 import { usePersistentConfig } from './hooks/usePersistentConfig'
-import type { EditorTarget, IconPosition, Module, SearchEngine, Site } from './types'
+import type { EditorTarget, IconPosition, Module, Site } from './types'
 import { moveSite, type SiteMove } from './utils/moveSite'
 import { createBackup, importBackup } from './platform/backup'
 import { getStoredValue, setStoredValue, subscribeStoredValue, type StorageKey } from './platform/storage'
 
-const ENGINE_STORAGE_KEY = 'edith-navigation-search-engine-v1'
 const USAGE_STORAGE_KEY = 'edith-navigation-usage-v1'
 const defaultFrequentIds = ['chatgpt', 'claude', 'github', 'deepseek', 'perplexity', 'huggingface', 'juejin']
 const ONBOARDING_STORAGE_KEY = 'edith-navigation-onboarding-completed-v1'
@@ -64,17 +63,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   const pickerFocusTimer = useRef<number | null>(null)
   const [interaction, setInteraction] = useState<TemplateInteractionState>({ dragging: false, settling: false })
   const interactionRef = useRef(interaction)
-  const [engine, setEngine] = useState<SearchEngine>(() => {
-    try {
-      return searchEngines.find((item) => item.id === getStoredValue(ENGINE_STORAGE_KEY)) ?? searchEngines[0]
-    } catch {
-      return searchEngines[0]
-    }
-  })
-  const changeEngine = (next: SearchEngine) => {
-    setEngine(next)
-    persistValue(ENGINE_STORAGE_KEY, next.id)
-  }
+  const { engine, changeEngine } = useSearchSelection()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(() => {
     try { return getStoredValue(ONBOARDING_STORAGE_KEY) ? null : 1 } catch { return 1 }
@@ -92,9 +81,6 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
 
   useEffect(() => {
     const subscriptions = [
-      subscribeStoredValue(ENGINE_STORAGE_KEY, (saved) => {
-        setEngine(searchEngines.find((item) => item.id === saved) ?? searchEngines[0])
-      }),
       subscribeStoredValue(USAGE_STORAGE_KEY, (saved) => {
         try { setUsageCounts(saved ? JSON.parse(saved) as Record<string, number> : {}) } catch { /* Ignore invalid external data. */ }
       }),

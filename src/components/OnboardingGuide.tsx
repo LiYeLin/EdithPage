@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isExtensionSearch } from '../platform/search'
 
 export type OnboardingStep = 1 | 2 | 3 | 4
 
@@ -16,7 +17,9 @@ export function OnboardingGuide({ step, onNext, onSkip }: Props) {
     document.body.classList.add('onboarding-active')
     return () => document.body.classList.remove('onboarding-active')
   }, [])
-  const [title, description] = content[step - 1]
+  const [title, description] = step === 2 && isExtensionSearch()
+    ? ['使用默认搜索', '默认跟随浏览器的搜索设置，也可通过图标临时切换引擎；新标签页会恢复浏览器默认。']
+    : content[step - 1]
   return <div className={`onboarding-guide onboarding-step-${step}`} role="dialog" aria-modal="true" aria-label="首次访问引导">
     <div className="onboarding-backdrop" />
     <div className="onboarding-card">

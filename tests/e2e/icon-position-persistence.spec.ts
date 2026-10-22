@@ -103,6 +103,8 @@ for (const template of ['matter', 'beijing'] as const) {
     // Force real layout notifications without advancing the physical clock.
     await page.setViewportSize({ width: 1000, height: 800 })
     await expect.poll(async () => (await stored(page, template)).positions.alpha.x).toBeCloseTo(dropped.x, 4)
+    // Stored x can already match before ResizeObserver updates the rendered coordinates.
+    await expect.poll(async () => Math.abs((await position(page, template)).x - dropped.x)).toBeLessThan(0.002)
     await expectPosition(page, template, dropped)
     // Advance physics without dragging; pagehide must capture the current, not last-drop position.
     await page.clock.runFor(200)

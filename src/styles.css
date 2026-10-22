@@ -338,6 +338,18 @@ main { padding: clamp(20px, calc(37vh - 245px), 300px) 0 26px; }
 }
 .search-submit:hover { transform: translateY(-1px); box-shadow: 0 11px 27px rgba(var(--accent-rgb),.2); }
 .search-beam { display: none; }
+.search-error {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  padding: 9px 12px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 10px;
+  background: #1b2822;
+  color: #fff;
+  font-size: 12px;
+}
 
 .quick-add {
   height: 58px;

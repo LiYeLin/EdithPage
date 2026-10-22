@@ -1,6 +1,8 @@
 import { useId, useRef, useState } from 'react'
+import { Search } from 'lucide-react'
 import { searchEngines } from '../data/defaultConfig'
-import type { SearchEngine } from '../types'
+import { browserDefaultSearch, isExtensionSearch } from '../platform/search'
+import type { SearchSelection } from '../types'
 
 // Fixed catalog: no runtime favicon service or network-dependent logo lookup.
 const engineLogos: Record<string, string> = {
@@ -10,9 +12,10 @@ const engineLogos: Record<string, string> = {
 }
 
 export function SearchEnginePicker({ engine, onChange }: {
-  engine: SearchEngine
-  onChange: (engine: SearchEngine) => void
+  engine: SearchSelection
+  onChange: (engine: SearchSelection) => void
 }) {
+  const options = isExtensionSearch() ? [browserDefaultSearch, ...searchEngines] : searchEngines
   const [open, setOpen] = useState(false)
   const id = useId()
   const trigger = useRef<HTMLButtonElement>(null)
@@ -41,16 +44,18 @@ export function SearchEnginePicker({ engine, onChange }: {
       <button ref={trigger} type="button" className="engine-trigger"
         aria-label={`当前引擎：${engine.name}，切换搜索引擎`}
         aria-expanded={open} aria-controls={id} onClick={() => setOpen(true)}>
-        <img className="engine-logo" src={engineLogos[engine.id]} alt="" />
+        {engine.id === 'browser-default' ? <Search className="engine-logo" aria-hidden="true" />
+          : <img className="engine-logo" src={engineLogos[engine.id]} alt="" />}
       </button>
       <div className="engine-options" id={id} role="group" aria-label="选择搜索引擎" inert={!open}>
-        {searchEngines.map((item) => (
+        {options.map((item) => (
           <button key={item.id} type="button"
             aria-label={item.name} aria-pressed={engine.id === item.id}
             aria-describedby={`${id}-${item.id}`}
             className={`engine-option ${engine.id === item.id ? 'is-active' : ''}`}
             onClick={() => { onChange(item); setOpen(false) }}>
-            <img className="engine-logo" src={engineLogos[item.id]} alt="" />
+            {item.id === 'browser-default' ? <Search className="engine-logo" aria-hidden="true" />
+              : <img className="engine-logo" src={engineLogos[item.id]} alt="" />}
             <span className="engine-tooltip" role="tooltip" id={`${id}-${item.id}`}>{item.name}</span>
           </button>
         ))}

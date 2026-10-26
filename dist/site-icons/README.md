@@ -7,7 +7,7 @@ These are vector paths, not embedded bitmap images. Brand marks remain the prope
 - Simple Icons: CC0; license retained in `LICENSE-simple-icons.txt`.
 - Changes: `currentColor` is resolved to `#18181B` for standalone images; Simple Icons receive their upstream brand hex as the root fill. Geometry is unchanged.
 - Hacker News uses its parent Y Combinator mark. DeepLearning.AI keeps the existing favicon fallback. fast.ai uses a local CSS-styled text identifier (not an official brand logo): its favicon service returned a blurry 16px globe, and no suitable vector mark was located in the checked sources.
-- Exact host aliases are configured in `src/data/siteIcons.ts`. Unknown hosts retain the Google favicon service and then the initial-letter fallback.
+- Exact host aliases are configured in `src/data/siteIcons.ts`. Unknown hosts use the selected Cravatar (domestic) or Google favicon service, then an initial-letter fallback. The same behavior applies to web and extension builds.
 
 | Local file | Source / license | Pinned source URL |
 | --- | --- | --- |

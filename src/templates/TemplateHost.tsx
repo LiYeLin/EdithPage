@@ -1,3 +1,4 @@
+import { useTranslation } from '../i18n/useTranslation'
 import { useCallback, useEffect, useRef } from 'react'
 import type { NavigationTemplateProps, TemplateInteractionState } from './types'
 import type { LoadedTemplate } from './useTemplateSelection'
@@ -22,8 +23,9 @@ function MountedTemplate({ loaded, templateProps }: { loaded: LoadedTemplate; te
 export function TemplateHost({ active, error, retry, ...templateProps }: NavigationTemplateProps & {
   active: LoadedTemplate | null; error: string | null; retry: () => void
 }) {
-  if (!active) return <section className="template-placeholder" aria-label="导航模板" aria-busy={!error}>
-    {error ? <><p role="alert">{error}</p><button type="button" onClick={retry}>重试加载</button></> : <p role="status">正在加载导航模板…</p>}
+  const t = useTranslation()
+  if (!active) return <section className="template-placeholder" aria-label={t("导航模板")} aria-busy={!error}>
+    {error ? <><p role="alert">{t(error)}</p><button type="button" onClick={retry}>{t("重试加载")}</button></> : <p role="status">{t("正在加载导航模板…")}</p>}
   </section>
   return <div className="template-host" inert={templateProps.interactionBlocked}>
     {/* Only this subtree is keyed: search text, business state and undo deadlines survive. */}

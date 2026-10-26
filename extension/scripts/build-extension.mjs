@@ -100,6 +100,7 @@ for (const browser of extensionTargets) {
   const target = resolve(outputRoot, browser.id)
   cpSync(appFolder, target, { recursive: true })
   cpSync(resolve(projectRoot, 'extension/icons'), resolve(target, 'icons'), { recursive: true })
+  cpSync(resolve(projectRoot, 'extension/_locales'), resolve(target, '_locales'), { recursive: true })
   const manifest = JSON.parse(readFileSync(resolve(projectRoot, 'extension/manifests', `${browser.id}.json`), 'utf8'))
   manifest.version = version
   writeFileSync(resolve(target, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)

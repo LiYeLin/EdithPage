@@ -1,3 +1,4 @@
+import { useTranslation } from '../i18n/useTranslation'
 import { Pencil, Trash2 } from 'lucide-react'
 import { SiteIcon } from './SiteIcon'
 import type { FrequentSiteItem } from '../types'
@@ -12,10 +13,11 @@ type FrequentSiteStripProps = {
 }
 
 export function FrequentSiteStrip({ sites, editing, onEnterEditMode, onEdit, onRemove, onVisit }: FrequentSiteStripProps) {
+  const t = useTranslation()
   return (
     <section className="frequent-site-strip" aria-labelledby="frequent-site-strip-title">
       <header className="frequent-site-strip-header">
-        <h2 id="frequent-site-strip-title">最常使用</h2>
+        <h2 id="frequent-site-strip-title">{t("最常使用")}</h2>
         <span>{sites.length}</span>
       </header>
       <div className="frequent-site-strip-list">
@@ -25,7 +27,7 @@ export function FrequentSiteStrip({ sites, editing, onEnterEditMode, onEdit, onR
               href={site.url}
               target="_blank"
               rel="noreferrer"
-              aria-label={editing ? `编辑 ${site.name}` : `${site.name}：${site.description}`}
+              aria-label={editing ? t("编辑 {0}", site.name) : site.name}
               onClick={(event) => {
                 if (editing) {
                   event.preventDefault()
@@ -39,16 +41,16 @@ export function FrequentSiteStrip({ sites, editing, onEnterEditMode, onEdit, onR
               <strong>{site.name}</strong>
             </a>
             {!editing && (
-              <button type="button" onClick={onEnterEditMode} aria-label={`编辑最常使用的 ${site.name}`}>
+              <button type="button" onClick={onEnterEditMode} aria-label={t("编辑最常使用的 {0}", site.name)}>
                 <Pencil size={11} />
               </button>
             )}
             {editing && (
               <span className="frequent-site-strip-actions" data-editing-interactive>
-                <button type="button" onClick={() => onEdit(moduleId, site.id)} aria-label={`编辑 ${site.name}`}>
+                <button type="button" onClick={() => onEdit(moduleId, site.id)} aria-label={t("编辑 {0}", site.name)}>
                   <Pencil size={11} />
                 </button>
-                <button type="button" onClick={() => onRemove(moduleId, site.id)} aria-label={`删除 ${site.name}`}>
+                <button type="button" onClick={() => onRemove(moduleId, site.id)} aria-label={t("删除 {0}", site.name)}>
                   <Trash2 size={11} />
                 </button>
               </span>

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation'
 import { useBubbleRuntime } from '../runtime'
 import { LiquidBubbleSkin } from './LiquidBubbleSkin'
 import { useBubbleFloat } from '../hooks/useBubbleFloat'
@@ -41,6 +42,7 @@ export function ModulePanel({
   onRemoveModule,
   onVisit,
 }: ModulePanelProps) {
+  const t = useTranslation()
   const { blocked } = useBubbleRuntime()
   const dragEnabled = useContext(SiteDragEnabledContext)
   const { active } = useDndContext()
@@ -132,7 +134,7 @@ export function ModulePanel({
             type="button"
             onClick={handleModuleClick}
             onContextMenu={(event) => event.preventDefault()}
-            aria-label={isEditing ? `编辑分类 ${module.title}` : `${module.title}，长按进入编辑模式`}
+            aria-label={isEditing ? t("编辑分类 {0}", module.title) : t("{0}，长按进入编辑模式", module.title)}
           >
             <span className="module-dot" />
             <h2>{module.title}</h2>
@@ -144,7 +146,7 @@ export function ModulePanel({
                 className="remove-module"
                 type="button"
                 onClick={() => onRemoveModule(module.id)}
-                aria-label={`删除分类 ${module.title} 及其中的 ${module.sites.length} 个站点`}
+                aria-label={t("删除分类 {0} 及其中的 {1} 个站点", module.title, module.sites.length)}
               >
                 <X size={13} strokeWidth={2.6} />
               </button>
@@ -177,7 +179,7 @@ export function ModulePanel({
             const addPosition = positions[sites.length]
 
             return (
-              <div className="bubble-page" key={pageIndex} aria-label={`${module.title} 第 ${pageIndex + 1} 页`} inert={activePage !== pageIndex}>
+              <div className="bubble-page" key={pageIndex} aria-label={t("{0} 第 {1} 页", module.title, pageIndex + 1)} inert={activePage !== pageIndex}>
                 {sites.map((site, siteIndex) => (
                   <motion.div
                     layout={reducedMotion ? false : 'position'}
@@ -206,9 +208,9 @@ export function ModulePanel({
                     className="bubble-site-motion bubble-add-position"
                     style={{ left: layout.diameter / 2 + addPosition.x, top: layout.diameter / 2 + addPosition.y }}
                   >
-                    <button className="add-site-app" type="button" onClick={() => onAddSite(module.id)} aria-label={`添加站点到 ${module.title}`}>
+                    <button className="add-site-app" type="button" onClick={() => onAddSite(module.id)} aria-label={t("添加站点到 {0}", module.title)}>
                       <span><Plus size={20} strokeWidth={1.5} /></span>
-                      <strong>{module.sites.length === 0 ? '添加首个站点' : '添加'}</strong>
+                      <strong>{module.sites.length === 0 ? t("添加首个站点") : t("添加")}</strong>
                     </button>
                   </motion.div>
                 )}
@@ -219,12 +221,12 @@ export function ModulePanel({
         </motion.div>
 
       {pageCount > 1 && (
-        <div className="bubble-pagination module-controls" aria-label={`${module.title}翻页`}>
-          <button type="button" onClick={() => scroll(-1)} disabled={activePage === 0} aria-label={`${module.title} 向左滑动`}>
+        <div className="bubble-pagination module-controls" aria-label={t("{0}翻页", module.title)}>
+          <button type="button" onClick={() => scroll(-1)} disabled={activePage === 0} aria-label={t("{0} 向左滑动", module.title)}>
             <ChevronLeft size={14} />
           </button>
           <span aria-live="polite">{Math.min(activePage + 1, pageCount)} / {pageCount}</span>
-          <button type="button" onClick={() => scroll(1)} disabled={activePage >= pageCount - 1} aria-label={`${module.title} 向右滑动`}>
+          <button type="button" onClick={() => scroll(1)} disabled={activePage >= pageCount - 1} aria-label={t("{0} 向右滑动", module.title)}>
             <ChevronRight size={14} />
           </button>
         </div>

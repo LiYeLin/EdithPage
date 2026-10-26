@@ -1,3 +1,4 @@
+import { useTranslation } from '../../i18n/useTranslation'
 import './plain.css'
 import { AppWindow, Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect } from 'react'
@@ -25,6 +26,7 @@ function PlainSiteTile({
   onMove: (toModuleId: string) => void
   onVisit: () => void
 }) {
+  const t = useTranslation()
   return (
     <article className={`plain-site-tile ${editing ? 'is-editing' : ''}`} data-editing-interactive data-plain-site={site.id}>
       <a
@@ -33,7 +35,7 @@ function PlainSiteTile({
         target="_blank"
         rel="noreferrer"
         onClick={onVisit}
-        aria-label={`${site.name}，打开站点`}
+        aria-label={t("{0}，打开站点", site.name)}
       >
         <SiteIcon url={site.url} name={site.name} size={76} />
         <strong>{site.name}</strong>
@@ -41,21 +43,21 @@ function PlainSiteTile({
       {editing && (
         <div className="plain-site-editor" data-editing-interactive>
           <div className="plain-site-actions">
-            <button type="button" onClick={onEdit} aria-label={`编辑 ${site.name}`} title="编辑">
+            <button type="button" onClick={onEdit} aria-label={t("编辑 {0}", site.name)} title={t("编辑")}>
               <Pencil size={13} />
             </button>
-            <button type="button" onClick={onRemove} aria-label={`删除 ${site.name}`} title="删除">
+            <button type="button" onClick={onRemove} aria-label={t("删除 {0}", site.name)} title={t("删除")}>
               <Trash2 size={13} />
             </button>
           </div>
           <label className="plain-move-label">
-            <span>移动到</span>
+            <span>{t("移动到")}</span>
             <select
-              aria-label={`移动 ${site.name}`}
+              aria-label={t("移动 {0}", site.name)}
               value=""
               onChange={(event) => onMove(event.target.value)}
             >
-              <option value="" disabled>选择分类</option>
+              <option value="" disabled>{t("选择分类")}</option>
               {modules.filter((target) => target.id !== module.id).map((target) => (
                 <option value={target.id} key={target.id}>{target.title}</option>
               ))}
@@ -78,15 +80,16 @@ function PlainModuleActions({
   onAdd: () => void
   onRemove: () => void
 }) {
+  const t = useTranslation()
   return (
     <div className="plain-module-actions" data-editing-interactive>
-      <button type="button" onClick={onEdit} aria-label={`编辑分类 ${module.title}`} title="编辑分类">
+      <button type="button" onClick={onEdit} aria-label={t("编辑分类 {0}", module.title)} title={t("编辑分类")}>
         <Pencil size={14} />
       </button>
-      <button type="button" onClick={onAdd} aria-label={`添加到 ${module.title}`} title="添加站点">
+      <button type="button" onClick={onAdd} aria-label={t("添加到 {0}", module.title)} title={t("添加站点")}>
         <Plus size={15} />
       </button>
-      <button type="button" onClick={onRemove} aria-label={`删除分类 ${module.title}`} title="删除分类">
+      <button type="button" onClick={onRemove} aria-label={t("删除分类 {0}", module.title)} title={t("删除分类")}>
         <Trash2 size={14} />
       </button>
     </div>
@@ -100,13 +103,14 @@ export default function PlainTemplate({
   actions,
   onInteractionStateChange,
 }: NavigationTemplateProps) {
+  const t = useTranslation()
   useEffect(() => {
     onInteractionStateChange({ dragging: false, settling: false })
     return () => onInteractionStateChange({ dragging: false, settling: false })
   }, [onInteractionStateChange])
 
   return (
-    <section className="plain-template" data-template="plain" aria-label="纯净应用网格模板">
+    <section className="plain-template" data-template="plain" aria-label={t("纯净应用网格模板")}>
       <FrequentSiteStrip sites={frequentSites} editing={editing} onEnterEditMode={actions.enterEditMode}
         onEdit={(moduleId, siteId) => actions.edit({ type: 'site', moduleId, siteId })}
         onRemove={actions.removeSite} onVisit={actions.visitSite} />
@@ -117,7 +121,7 @@ export default function PlainTemplate({
               <div className="plain-module-heading" data-editing-interactive>
                 <div>
                   <h3 id={`plain-module-${module.id}`}>{module.title}</h3>
-                  <span>{module.sites.length} 个应用</span>
+                  <span>{t(module.sites.length === 1 ? '1 个应用' : '{0} 个应用', module.sites.length)}</span>
                 </div>
                 {editing ? (
                   <PlainModuleActions
@@ -127,9 +131,8 @@ export default function PlainTemplate({
                     onRemove={() => actions.removeModule(module.id)}
                   />
                 ) : (
-                  <button className="plain-module-edit-button" data-onboarding-edit type="button" onClick={actions.enterEditMode} aria-label={`进入编辑模式：${module.title}`}>
-                    <Pencil size={13} />编辑
-                  </button>
+                  <button className="plain-module-edit-button" data-onboarding-edit type="button" onClick={actions.enterEditMode} aria-label={t("进入编辑模式：{0}", module.title)}>
+                    <Pencil size={13} />{t("编辑")} </button>
                 )}
               </div>
 
@@ -152,11 +155,10 @@ export default function PlainTemplate({
               ) : (
                 <div className="plain-empty-state">
                   <AppWindow size={28} strokeWidth={1.5} />
-                  <p>这个分类还没有应用</p>
+                  <p>{t("这个分类还没有应用")}</p>
                   {editing && (
                     <button type="button" onClick={() => actions.addSite(module.id)}>
-                      <Plus size={15} />添加站点
-                    </button>
+                      <Plus size={15} />{t("添加站点")} </button>
                   )}
                 </div>
               )}
@@ -165,18 +167,16 @@ export default function PlainTemplate({
         ) : (
           <div className="plain-empty-state">
             <AppWindow size={28} strokeWidth={1.5} />
-            <p>还没有分类</p>
+            <p>{t("还没有分类")}</p>
             <button type="button" onClick={actions.openSettings}>
-              <Plus size={15} />创建分类
-            </button>
+              <Plus size={15} />{t("创建分类")} </button>
           </div>
         )}
       </div>
 
       {editing && (
         <div className="plain-editing-note" data-editing-interactive>
-          <Check size={14} />编辑模式：修改完成后点击空白处退出
-        </div>
+          <Check size={14} />{t("编辑模式：修改完成后点击空白处退出")} </div>
       )}
     </section>
   )

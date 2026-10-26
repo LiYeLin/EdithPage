@@ -1,3 +1,4 @@
+import { useTranslation } from '../../i18n/useTranslation'
 import './matter.css'
 import Matter from 'matter-js'
 import { isValidIconPosition } from '../config'
@@ -121,6 +122,7 @@ export default function MatterTemplate({
   iconPositionPersistence,
   onInteractionStateChange,
 }: NavigationTemplateProps) {
+  const t = useTranslation()
   const stageRef = useRef<HTMLDivElement>(null)
   const iconRefs = useRef(new Map<string, HTMLDivElement>())
   const suppressClickUntil = useRef(0)
@@ -452,7 +454,7 @@ export default function MatterTemplate({
   }
 
   return (
-    <section className="matter-template" data-template="matter" aria-label="物理图标导航模板">
+    <section className="matter-template" data-template="matter" aria-label={t("物理图标导航模板")}>
       <FrequentSiteStrip sites={frequentSites} editing={editing} onEnterEditMode={actions.enterEditMode}
         onEdit={(moduleId, siteId) => actions.edit({ type: 'site', moduleId, siteId })}
         onRemove={actions.removeSite} onVisit={actions.visitSite} />
@@ -463,19 +465,19 @@ export default function MatterTemplate({
             data-onboarding-edit
             onClick={actions.enterEditMode}
             disabled={interactionBlocked}
-            aria-label="进入编辑模式"
+            aria-label={t("进入编辑模式")}
           >
             <Pencil size={14} aria-hidden="true" />
-            <span>进入编辑模式</span>
+            <span>{t("进入编辑模式")}</span>
           </button>
         </div>
       )}
       <div
         ref={stageRef}
         className={`matter-stage${interactionBlocked ? ' is-blocked' : ''}`}
-        aria-label="网站图标物理舞台"
+        aria-label={t("网站图标物理舞台")}
       >
-        <div className="matter-icons" aria-label="网站快捷入口">
+        <div className="matter-icons" aria-label={t("网站快捷入口")}>
           {sites.map(({ site, module }) => (
             <div
               key={site.id}
@@ -486,14 +488,14 @@ export default function MatterTemplate({
                 if (element) iconRefs.current.set(site.id, element)
                 else iconRefs.current.delete(site.id)
               }}
-              aria-label={`${site.name}物理图标`}
+              aria-label={t("{0}物理图标", site.name)}
             >
               <a
                 className="matter-icon-anchor"
                 href={site.url}
                 target="_blank"
                 rel="noreferrer"
-                aria-label={`${site.name}，打开站点`}
+                aria-label={t("{0}，打开站点", site.name)}
                 onDragStart={(event) => event.preventDefault()}
                 onClick={(event) => {
                   const now = performance.now()
@@ -514,10 +516,10 @@ export default function MatterTemplate({
               </span>
               {editing && (
                 <span className="matter-icon-actions" data-editing-interactive>
-                  <button type="button" aria-label={`编辑 ${site.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); actions.edit({ type: 'site', moduleId: module.id, siteId: site.id }) }}>
+                  <button type="button" aria-label={t("编辑 {0}", site.name)} onClick={(event) => { event.preventDefault(); event.stopPropagation(); actions.edit({ type: 'site', moduleId: module.id, siteId: site.id }) }}>
                     <Pencil size={11} />
                   </button>
-                  <button type="button" aria-label={`删除 ${site.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); actions.removeSite(module.id, site.id) }}>
+                  <button type="button" aria-label={t("删除 {0}", site.name)} onClick={(event) => { event.preventDefault(); event.stopPropagation(); actions.removeSite(module.id, site.id) }}>
                     <Trash2 size={11} />
                   </button>
                 </span>
@@ -525,7 +527,7 @@ export default function MatterTemplate({
             </div>
           ))}
         </div>
-        {sites.length === 0 && <p className="matter-empty">还没有网站，打开编辑模式添加一个吧</p>}
+        {sites.length === 0 && <p className="matter-empty">{t("还没有网站，打开编辑模式添加一个吧")}</p>}
       </div>
     </section>
   )

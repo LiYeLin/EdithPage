@@ -1,3 +1,5 @@
+import { useTranslation } from './i18n/useTranslation'
+import { PreferencesProvider } from './i18n/PreferencesProvider'
 import type { TemplateDefinition, TemplateInteractionState } from './templates/types'
 import { templates as productionTemplates } from './templates/registry'
 import { canSwitchTemplate, getIconPositionPersistence, getTemplateAppearance, normalizeIconPositions, selectTemplate } from './templates/config'
@@ -31,10 +33,12 @@ const EDIT_MODE_INTERACTIVE_SELECTOR = [
   '[data-editing-interactive]',
 ].join(',')
 
+type UndoMessage = { key: string; values: (string | number)[] }
+
 type UndoAction =
-  | { type: 'move'; move: SiteMove; originalIndex: number; message: string }
-  | { type: 'site'; moduleId: string; site: Site; index: number; message: string }
-  | { type: 'module'; module: Module; index: number; message: string }
+  | { type: 'move'; move: SiteMove; originalIndex: number; message: UndoMessage }
+  | { type: 'site'; moduleId: string; site: Site; index: number; message: UndoMessage }
+  | { type: 'module'; module: Module; index: number; message: UndoMessage }
 
 function loadUsageCounts(): Record<string, number> {
   try {
@@ -54,6 +58,7 @@ function persistValue(key: StorageKey, value: string) {
 }
 
 function App({ templates = productionTemplates }: { templates?: readonly TemplateDefinition[] }) {
+  const t = useTranslation()
   const { config, setConfig, resetConfig, storageError } = usePersistentConfig(templates)
   const selection = useTemplateSelection(templates, config.templateId)
   const appearance = getTemplateAppearance(selection.active?.definition)
@@ -255,7 +260,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
         item.id === moduleId ? { ...item, sites: item.sites.filter((entry) => entry.id !== siteId) } : item,
       ),
     })
-    queueUndo({ type: 'site', moduleId, site, index, message: `已删除 ${site.name}` })
+    queueUndo({ type: 'site', moduleId, site, index, message: { key: '已删除 {0}', values: [site.name] } })
   }
 
   const removeModule = (moduleId: string) => {
@@ -268,7 +273,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
       type: 'module',
       module,
       index,
-      message: `已删除分类「${module.title}」和其中 ${module.sites.length} 个站点`,
+      message: { key: '已删除分类「{0}」和其中 {1} 个站点', values: [module.title, module.sites.length] },
     })
   }
 
@@ -282,7 +287,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
       const target = next.modules.find(module => module.id === move.toModuleId)!
       moved = true
       setRevealSite({ moduleId: move.toModuleId, siteId: move.siteId })
-      queueUndo({ type: 'move', move, originalIndex, message: `已将 ${source.sites[originalIndex].name} 移到「${target.title}」` })
+      queueUndo({ type: 'move', move, originalIndex, message: { key: '已将 {0} 移到「{1}」', values: [source.sites[originalIndex].name, target.title] } })
       return next
     })
     return moved
@@ -388,7 +393,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
         if (!dragSessionRef.current.active) dragSessionRef.current.suppressUntil = 0
       }}
       onClickCapture={preventDragClick}
-      data-accent={config.accent}
+      data-accent="mint"
       style={{
         '--app-background-image': `url("${appearance.backgroundImage}")`,
         '--app-background-position': appearance.backgroundPosition,
@@ -400,13 +405,13 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
       <div className="noise" />
 
       <header className="topbar" inert={pickerOpen}>
-        <a className="brand" href="#top" aria-label="返回顶部">
+        <a className="brand" href="#top" aria-label={t("返回顶部")}>
           <img className="brand-mark" src="/brand/edith-mark-white.svg" alt="" aria-hidden="true" />
         </a>
 
         <div className="top-actions">
-          <button ref={templateButtonRef} className="template-button" type="button" onClick={openPicker} disabled={!selection.active || selection.loading || !canSwitchTemplate(interaction)} aria-label="切换模板"><Layers3 size={17} /></button>
-          <button className="settings-button" type="button" onClick={openGeneralSettings} aria-label="打开设置">
+          <button ref={templateButtonRef} className="template-button" type="button" onClick={openPicker} disabled={!selection.active || selection.loading || !canSwitchTemplate(interaction)} aria-label={t("切换模板")}><Layers3 size={17} /></button>
+          <button className="settings-button" type="button" onClick={openGeneralSettings} aria-label={t("打开设置")}>
             <Settings2 size={17} />
           </button>
         </div>
@@ -421,12 +426,12 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
           />
         </div>
 
-        <section className="command-row" aria-label="搜索和站点操作">
+        <section className="command-row" aria-label={t("搜索和站点操作")}>
           <SearchDeck engine={engine} onEngineChange={(next) => { changeEngine(next); if (onboardingStep === 2) completeOnboardingAction() }} />
           {editing && (
-            <button className="quick-add" type="button" onClick={openGeneralSettings} aria-label="添加站点">
+            <button className="quick-add" type="button" onClick={openGeneralSettings} aria-label={t("添加站点")}>
               <Plus size={17} />
-              <span>添加站点</span>
+              <span>{t("添加站点")}</span>
             </button>
           )}
         </section>
@@ -441,7 +446,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
 
       {undoAction ? (
         <div inert={pickerOpen} data-editing-interactive className="undo-toast" role="status">
-          <span>{undoAction.message}</span>
+          <span>{t(undoAction.message.key, ...undoAction.message.values)}</span>
           <button
             type="button"
             onPointerDown={(event) => { if (event.button === 0) undoPointerRef.current = event.pointerId }}
@@ -456,13 +461,13 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
               dragSessionRef.current.suppressUntil = performance.now() + 250
             }}
             onClick={undoChange}
-          >撤销</button>
+          >{t("撤销")}</button>
         </div>
       ) : editing && (
-        <div data-editing-interactive className="editing-toast"><span /> {selection.active?.definition.editingHint}</div>
+        <div data-editing-interactive className="editing-toast"><span /> {t(selection.active?.definition.editingHint ?? '')}</div>
       )}
 
-      {storageError && <div className="storage-error" role="alert">{storageError}</div>}
+      {storageError && <div className="storage-error" role="alert">{t(storageError)}</div>}
       {pickerOpen && <TemplatePicker templates={templates} currentId={config.templateId} loading={selection.loading}
         busy={!canSwitchTemplate(interaction)} error={selection.error} onSelect={chooseTemplate} onClose={closePicker} />}
       <SettingsDrawer
@@ -482,4 +487,6 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   )
 }
 
-export default App
+export default function EdithApp(props: { templates?: readonly TemplateDefinition[] }) {
+  return <PreferencesProvider><App {...props} /></PreferencesProvider>
+}

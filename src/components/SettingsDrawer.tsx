@@ -1,3 +1,7 @@
+import { useContext } from 'react'
+import { PreferencesContext } from '../i18n/PreferencesContext'
+import type { Language, IconService } from '../i18n/preferences'
+import { useTranslation } from '../i18n/useTranslation'
 import { Check, Download, Plus, RotateCcw, Settings2, Upload, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -15,12 +19,6 @@ type SettingsDrawerProps = {
   onExport: () => void
   onImport: (file: File) => Promise<void>
 }
-
-const accentOptions: Array<{ id: NavigationConfig['accent']; label: string; color: string }> = [
-  { id: 'mint', label: '薄荷绿', color: '#9ff7cd' },
-  { id: 'violet', label: '星云紫', color: '#b9b6ff' },
-  { id: 'orange', label: '日落橙', color: '#ffbd7b' },
-]
 
 const moduleAccentOptions = ['#9ff7cd', '#b9b6ff', '#ffcb93', '#88d9ff', '#ff9fb7', '#ffe38c']
 
@@ -40,6 +38,8 @@ export function SettingsDrawer({
   onExport,
   onImport,
 }: SettingsDrawerProps) {
+  const t = useTranslation()
+  const { preferences, update, error: preferenceError } = useContext(PreferencesContext)
   const editingSiteContext = editingTarget?.type === 'site'
     ? (() => {
         const module = config.modules.find((item) => item.id === editingTarget.moduleId)
@@ -53,13 +53,11 @@ export function SettingsDrawer({
 
   const [siteName, setSiteName] = useState(editingSiteContext?.site.name ?? '')
   const [siteUrl, setSiteUrl] = useState(editingSiteContext?.site.url ?? '')
-  const [siteDescription, setSiteDescription] = useState(editingSiteContext?.site.description ?? '')
   const [selectedModuleId, setSelectedModuleId] = useState(
     editingSiteContext?.module.id ?? activeModuleId ?? config.modules[0]?.id ?? '',
   )
   const [newModuleName, setNewModuleName] = useState('')
   const [moduleName, setModuleName] = useState(editingModule?.title ?? '')
-  const [moduleDescription, setModuleDescription] = useState(editingModule?.description ?? '')
   const [moduleAccent, setModuleAccent] = useState(editingModule?.accent ?? moduleAccentOptions[0])
   const [transferStatus, setTransferStatus] = useState<string | null>(null)
   const importInput = useRef<HTMLInputElement>(null)
@@ -78,7 +76,6 @@ export function SettingsDrawer({
         ...editingSiteContext.site,
         name: siteName.trim(),
         url: normalizeUrl(siteUrl),
-        description: siteDescription.trim() || '自定义站点',
       }
       const originalModuleId = editingTarget.moduleId
 
@@ -116,7 +113,7 @@ export function SettingsDrawer({
                   id: `${Date.now()}`,
                   name: siteName.trim(),
                   url: normalizeUrl(siteUrl),
-                  description: siteDescription.trim() || '自定义站点',
+                  description: '',
                 },
               ],
             }
@@ -125,7 +122,6 @@ export function SettingsDrawer({
     })
     setSiteName('')
     setSiteUrl('')
-    setSiteDescription('')
   }
 
   const saveModule = (event: FormEvent) => {
@@ -139,7 +135,6 @@ export function SettingsDrawer({
           ? {
               ...module,
               title: moduleName.trim(),
-              description: moduleDescription.trim() || '你的自定义资源分组',
               accent: moduleAccent,
             }
           : module,
@@ -159,8 +154,8 @@ export function SettingsDrawer({
         {
           id,
           title,
-          description: '你的自定义资源分组',
-          accent: accentOptions.find((option) => option.id === config.accent)?.color ?? '#9ff7cd',
+          description: '',
+          accent: moduleAccentOptions[0],
           sites: [],
         },
       ],
@@ -172,7 +167,7 @@ export function SettingsDrawer({
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (!file || !window.confirm('导入将覆盖当前配置，是否继续？')) return
+    if (!file || !window.confirm(t("导入将覆盖当前配置，是否继续？"))) return
 
     setTransferStatus('正在导入…')
     try {
@@ -187,16 +182,16 @@ export function SettingsDrawer({
   const isEditingModule = Boolean(editingModule)
   const positionTemplate = config.templateId === 'matter' || config.templateId === 'beijing' ? config.templateId : null
   const iconPositionPersistence = positionTemplate ? getIconPositionPersistence(config, positionTemplate) : null
-  const drawerTitle = isEditingSite ? '编辑站点' : isEditingModule ? '编辑分类' : '定制工作台'
+  const drawerTitle = isEditingSite ? t("编辑站点") : isEditingModule ? t("编辑分类") : t("定制工作台")
   const drawerDescription = isEditingSite
-    ? '修改名称、网址或所属分类'
+    ? t("修改名称、网址或所属分类")
     : isEditingModule
-      ? '调整分类信息，站点不会受到影响'
-      : '修改后会自动保存在本机'
+      ? t("调整分类信息，站点不会受到影响")
+      : t("修改后会自动保存在本机")
 
   return (
     <>
-      <button className={`drawer-backdrop ${open ? 'is-open' : ''}`} onClick={onClose} aria-label="关闭设置" />
+      <button className={`drawer-backdrop ${open ? 'is-open' : ''}`} onClick={onClose} aria-label={t("关闭设置")} />
       <aside data-editing-interactive className={`settings-drawer ${open ? 'is-open' : ''}`} aria-hidden={!open} inert={!open}>
         <div className="drawer-head">
           <div className="drawer-title-mark"><Settings2 size={18} /></div>
@@ -204,7 +199,7 @@ export function SettingsDrawer({
             <h2>{drawerTitle}</h2>
             <p>{drawerDescription}</p>
           </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="关闭">
+          <button className="icon-button" type="button" onClick={onClose} aria-label={t("关闭")}>
             <X size={19} />
           </button>
         </div>
@@ -213,12 +208,11 @@ export function SettingsDrawer({
           {isEditingModule ? (
             <form className="edit-form" onSubmit={saveModule}>
               <section className="settings-section">
-                <span className="settings-label">分类信息</span>
-                <input value={moduleName} onChange={(event) => setModuleName(event.target.value)} placeholder="分类名称" />
-                <input value={moduleDescription} onChange={(event) => setModuleDescription(event.target.value)} placeholder="一句话描述" />
+                <span className="settings-label">{t("分类信息")}</span>
+                <input value={moduleName} onChange={(event) => setModuleName(event.target.value)} placeholder={t("分类名称")} />
               </section>
               <section className="settings-section">
-                <span className="settings-label">分类强调色</span>
+                <span className="settings-label">{t("分类强调色")}</span>
                 <div className="module-accent-picker">
                   {moduleAccentOptions.map((color) => (
                     <button
@@ -227,7 +221,7 @@ export function SettingsDrawer({
                       type="button"
                       style={{ '--option-color': color } as React.CSSProperties}
                       onClick={() => setModuleAccent(color)}
-                      aria-label={`使用颜色 ${color}`}
+                      aria-label={t("使用颜色 {0}", color)}
                     >
                       <i />
                       {moduleAccent === color && <Check size={14} />}
@@ -236,72 +230,65 @@ export function SettingsDrawer({
                 </div>
               </section>
               <button className="primary-button drawer-save-button" type="submit" disabled={!moduleName.trim()}>
-                <Check size={16} /> 保存分类
-              </button>
+                <Check size={16} />  {t("保存分类")} </button>
             </form>
           ) : (
             <>
-              {!isEditingSite && (
-                <section className="settings-section">
-                  <span className="settings-label">主题色</span>
-                  <div className="accent-picker">
-                    {accentOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={config.accent === option.id ? 'is-selected' : ''}
-                        onClick={() => onChange({ ...config, accent: option.id })}
-                      >
-                        <i style={{ background: option.color }} />
-                        {option.label}
-                        {config.accent === option.id && <Check size={14} />}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-
               <section className="settings-section">
-                <span className="settings-label">{isEditingSite ? '站点信息' : '添加站点'}</span>
+                <span className="settings-label">{isEditingSite ? t("站点信息") : t("添加站点")}</span>
                 <form className="add-site-form" onSubmit={saveSite}>
                   <select
                     value={selectedModuleId}
                     onChange={(event) => setSelectedModuleId(event.target.value)}
                     disabled={config.modules.length === 0}
-                    aria-label="所属分类"
+                    aria-label={t("所属分类")}
                   >
                     {config.modules.map((module) => <option value={module.id} key={module.id}>{module.title}</option>)}
                   </select>
-                  <input value={siteName} onChange={(event) => setSiteName(event.target.value)} placeholder="站点名称" />
+                  <input value={siteName} onChange={(event) => setSiteName(event.target.value)} placeholder={t("站点名称")} />
                   <input value={siteUrl} onChange={(event) => setSiteUrl(event.target.value)} placeholder="https://example.com" inputMode="url" />
-                  <input value={siteDescription} onChange={(event) => setSiteDescription(event.target.value)} placeholder="一句话描述（可选）" />
                   <button
                     className="primary-button"
                     type="submit"
                     disabled={!siteName.trim() || !siteUrl.trim() || !selectedModuleId}
                   >
                     {isEditingSite ? <Check size={16} /> : <Plus size={16} />}
-                    {isEditingSite ? '保存站点' : `添加到「${selectedModule?.title ?? '模块'}」`}
+                    {isEditingSite ? t("保存站点") : t("添加到「{0}」", selectedModule?.title ?? t('模块'))}
                   </button>
                 </form>
               </section>
 
               {!isEditingSite && (
                 <>
+                  <section className="settings-section preference-settings">
+                    <label className="settings-label" htmlFor="interface-language">{t('界面语言')}</label>
+                    <select id="interface-language" value={preferences.language} onChange={event => update({ language: event.target.value as Language })}>
+                      <option value="auto">{t('跟随浏览器')}</option>
+                      <option value="zh-CN">简体中文</option>
+                      <option value="en">English</option>
+                    </select>
+                    <label className="settings-label" htmlFor="icon-service">{t('图标服务')}</label>
+                    <select id="icon-service" value={preferences.iconService} onChange={event => update({ iconService: event.target.value as IconService })}>
+                      <option value="domestic">{t('国内服务（Cravatar）')}</option>
+                      <option value="google">{t('Google 服务')}</option>
+                    </select>
+                    <p className="settings-help">{t('用于获取网站图标，仅发送网站域名，不发送具体页面地址。')}</p>
+                    {preferenceError && <p role="alert">{t(preferenceError)}</p>}
+                  </section>
                   {positionTemplate && iconPositionPersistence && (
                     <section className="settings-section icon-position-settings">
-                      <span className="settings-label">图标布局</span>
+                      <span className="settings-label">{t("图标布局")}</span>
                       <div className="icon-position-setting-row">
                         <div>
-                          <strong>保存图标位置</strong>
-                          <p id="icon-position-description">{iconPositionPersistence.enabled ? '开启：刷新后恢复上次保存的位置。' : '关闭：刷新后图标重新掉落。'}</p>
+                          <strong>{t("保存图标位置")}</strong>
+                          <p id="icon-position-description">{iconPositionPersistence.enabled ? t("开启：刷新后恢复上次保存的位置。") : t("关闭：刷新后图标重新掉落。")}</p>
                         </div>
                         <button
                           className={`settings-switch${iconPositionPersistence.enabled ? ' is-on' : ''}`}
                           type="button"
                           role="switch"
                           aria-checked={iconPositionPersistence.enabled}
-                          aria-label="保存图标位置"
+                          aria-label={t("保存图标位置")}
                           aria-describedby="icon-position-description"
                           onClick={() => onChange({
                             ...config,
@@ -320,36 +307,35 @@ export function SettingsDrawer({
                     </section>
                   )}
                   <section className="settings-section">
-                    <span className="settings-label">新建分类</span>
+                    <span className="settings-label">{t("新建分类")}</span>
                     <div className="inline-form">
-                      <input value={newModuleName} onChange={(event) => setNewModuleName(event.target.value)} placeholder="例如：设计灵感" />
-                      <button className="square-button" type="button" onClick={addModule} disabled={!newModuleName.trim()} aria-label="新建分类">
+                      <input value={newModuleName} onChange={(event) => setNewModuleName(event.target.value)} placeholder={t("例如：设计灵感")} />
+                      <button className="square-button" type="button" onClick={addModule} disabled={!newModuleName.trim()} aria-label={t("新建分类")}>
                         <Plus size={18} />
                       </button>
                     </div>
                   </section>
 
                   <section className="settings-section">
-                    <span className="settings-label">数据迁移</span>
-                    <p className="settings-help">通过 JSON 文件在网页版、Chrome 和 Edge 之间迁移配置。</p>
+                    <span className="settings-label">{t("数据迁移")}</span>
+                    <p className="settings-help">{t("通过 JSON 文件在网页版、Chrome 和 Edge 之间迁移配置。")}</p>
                     <div className="data-transfer-actions">
-                      <button type="button" onClick={onExport}><Download size={15} />导出</button>
-                      <button type="button" onClick={() => importInput.current?.click()}><Upload size={15} />导入</button>
+                      <button type="button" onClick={onExport}><Download size={15} />{t("导出")}</button>
+                      <button type="button" onClick={() => importInput.current?.click()}><Upload size={15} />{t("导入")}</button>
                     </div>
                     <input
                       ref={importInput}
                       className="visually-hidden"
                       type="file"
                       accept="application/json,.json"
-                      aria-label="选择 Edith 备份文件"
+                      aria-label={t("选择 Edith 备份文件")}
                       onChange={handleImport}
                     />
-                    {transferStatus && <p className="transfer-status" role="status">{transferStatus}</p>}
+                    {transferStatus && <p className="transfer-status" role="status">{t(transferStatus)}</p>}
                   </section>
 
                   <button className="reset-button" type="button" onClick={onReset}>
-                    <RotateCcw size={16} /> 恢复默认内容与配色
-                  </button>
+                    <RotateCcw size={16} />  {t("恢复默认内容与配色")} </button>
                 </>
               )}
             </>

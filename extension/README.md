@@ -30,7 +30,7 @@ npm run validate:extension
 
 Chrome、Edge 按商店发布目标维护；360、QQ 仅作为最新版 Windows Chromium 内核的兼容安装包，不生成 CRX，不承诺应用中心上架，也不支持 360 兼容模式或 Manifest V2。
 
-扩展版禁用 Vercel Analytics 和远程 favicon，请勿在扩展入口恢复远程脚本、远程模块或运行时图标服务。
+扩展版禁用 Vercel Analytics、远程脚本和远程模块。网站图标可通过国内 Cravatar 或 Google 图片服务加载，设置中可切换；不增加后台服务、网页读取或主机访问权限。插件名称和描述支持简体中文、英文，界面语言默认跟随浏览器，也可在设置中手动切换。
 
 商店文案、权限说明、审核步骤和隐私政策位于 `extension/store/`。
 

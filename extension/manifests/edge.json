@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Edith 新标签页",
+  "name": "__MSG_extensionName__",
   "short_name": "Edith",
-  "description": "可配置、轻量且具有流畅交互的新标签页导航。",
+  "description": "__MSG_extensionDescription__",
   "version": "0.0.0",
-  "permissions": ["storage", "search"],
+  "permissions": [
+    "storage",
+    "search"
+  ],
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
@@ -16,5 +19,6 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
-  }
+  },
+  "default_locale": "en"
 }

@@ -1,3 +1,4 @@
+import type { IconService } from '../i18n/preferences'
 // Match known hosts explicitly: broad suffix matches can give unrelated sites the wrong brand.
 const siteIcons: Readonly<Record<string, string>> = {
   'chatgpt.com': 'chatgpt',
@@ -34,15 +35,18 @@ export function getLocalSiteIcon(domain: string): string | undefined {
 
 export function getSiteIconFallbackText(domain: string, name: string): string {
   return domain.toLowerCase().replace(/^www\./, '') === 'fast.ai'
-    ? 'fast.ai' : name.slice(0, 1).toUpperCase()
+    ? 'fast.ai' : (Array.from(name)[0] ?? '').toUpperCase()
 }
 
-export function getSiteIconSources(domain: string): string[] {
-  // The service returns a decodable 16px globe for this host even with sz=128.
-  // Skip that known placeholder instead of relying on img.onError to reject it.
-  if (domain.toLowerCase().replace(/^www\./, '') === 'fast.ai') return []
+export function getSiteIconSources(domain: string, service: IconService = 'google'): string[] {
   const local = getLocalSiteIcon(domain)
-  if (import.meta.env.VITE_EXTENSION_BUILD === 'true') return local ? [local] : []
-  const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`
-  return local ? [local, favicon] : [favicon]
+  // Only send a valid hostname, never a URL path, credential or query string.
+  if (!/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/i.test(domain)
+    || domain.endsWith('.local') || domain.endsWith('.localhost')) return local ? [local] : []
+  const remote = service === 'domestic'
+    ? `https://cn.cravatar.com/favicon/api/index.php?url=${encodeURIComponent(domain)}`
+    : `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`
+  // Google returns a blurry placeholder for this host; the domestic service may resolve it.
+  if (service === 'google' && domain.toLowerCase().replace(/^www\./, '') === 'fast.ai') return []
+  return local ? [local, remote] : [remote]
 }

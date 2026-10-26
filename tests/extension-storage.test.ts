@@ -75,3 +75,18 @@ describe('扩展存储适配器', () => {
     ])
   })
 })
+
+it('preloads and preserves local preferences across legacy backup replacement', async () => {
+  const savedPreferences = '{"language":"en","iconService":"domestic"}'
+  const set = vi.fn(async () => undefined)
+  const remove = vi.fn(async () => undefined)
+  const get = vi.fn(async () => ({ 'edith-navigation-preferences-v1': savedPreferences }))
+  vi.stubGlobal('chrome', { runtime: { id: 'extension-id' }, storage: { local: { get, set, remove } } })
+  const storage = await import('../src/platform/storage')
+  await storage.initializeStorage()
+  expect(get).toHaveBeenCalledWith(expect.arrayContaining(['edith-navigation-preferences-v1']))
+  expect(storage.getStoredValue('edith-navigation-preferences-v1')).toBe(savedPreferences)
+  await storage.replaceStoredValues({ 'edith-navigation-search-engine-v1': 'google' })
+  expect(remove).not.toHaveBeenCalledWith(expect.arrayContaining(['edith-navigation-preferences-v1']))
+  expect(storage.getStoredValue('edith-navigation-preferences-v1')).toBe(savedPreferences)
+})

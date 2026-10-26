@@ -1,3 +1,4 @@
+import { useTranslation } from '../i18n/useTranslation'
 import { ArrowUpRight, Search, Sparkles } from 'lucide-react'
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import type { SearchSelection } from '../types'
@@ -10,6 +11,7 @@ type SearchDeckProps = {
 }
 
 export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
+  const t = useTranslation()
   const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -43,7 +45,7 @@ export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
   }
 
   return (
-    <section data-editing-interactive className="search-deck" aria-label="搜索">
+    <section data-editing-interactive className="search-deck" aria-label={t("搜索")}>
       <SearchEnginePicker engine={engine} onChange={(item) => {
         setError(null)
         onEngineChange(item)
@@ -56,18 +58,18 @@ export function SearchDeck({ engine, onEngineChange }: SearchDeckProps) {
           ref={inputRef}
           value={query}
           onChange={(event) => { setQuery(event.target.value); setError(null) }}
-          placeholder={engine.placeholder}
-          aria-label={`使用 ${engine.name} 搜索`}
+          placeholder={t(engine.placeholder)}
+          aria-label={t("使用 {0} 搜索", t(engine.name))}
         />
         <span className="keyboard-hint"><span>⌘</span>K</span>
-        <button className="search-submit" type="submit" aria-label="开始搜索">
+        <button className="search-submit" type="submit" aria-label={t("开始搜索")}>
           <Sparkles size={16} />
-          <span>搜索</span>
+          <span>{t("搜索")}</span>
           <ArrowUpRight size={16} />
         </button>
       </form>
       <div className="search-beam" />
-      {error && <div className="search-error" role="alert">{error}</div>}
+      {error && <div className="search-error" role="alert">{t(error)}</div>}
     </section>
   )
 }

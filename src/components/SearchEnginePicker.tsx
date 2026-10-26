@@ -1,3 +1,4 @@
+import { useTranslation } from '../i18n/useTranslation'
 import { useId, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { searchEngines } from '../data/defaultConfig'
@@ -15,6 +16,7 @@ export function SearchEnginePicker({ engine, onChange }: {
   engine: SearchSelection
   onChange: (engine: SearchSelection) => void
 }) {
+  const t = useTranslation()
   const options = isExtensionSearch() ? [browserDefaultSearch, ...searchEngines] : searchEngines
   const [open, setOpen] = useState(false)
   const id = useId()
@@ -42,21 +44,21 @@ export function SearchEnginePicker({ engine, onChange }: {
       }}
     >
       <button ref={trigger} type="button" className="engine-trigger"
-        aria-label={`当前引擎：${engine.name}，切换搜索引擎`}
+        aria-label={t("当前引擎：{0}，切换搜索引擎", t(engine.name))}
         aria-expanded={open} aria-controls={id} onClick={() => setOpen(true)}>
         {engine.id === 'browser-default' ? <Search className="engine-logo" aria-hidden="true" />
           : <img className="engine-logo" src={engineLogos[engine.id]} alt="" />}
       </button>
-      <div className="engine-options" id={id} role="group" aria-label="选择搜索引擎" inert={!open}>
+      <div className="engine-options" id={id} role="group" aria-label={t("选择搜索引擎")} inert={!open}>
         {options.map((item) => (
           <button key={item.id} type="button"
-            aria-label={item.name} aria-pressed={engine.id === item.id}
+            aria-label={t(item.name)} aria-pressed={engine.id === item.id}
             aria-describedby={`${id}-${item.id}`}
             className={`engine-option ${engine.id === item.id ? 'is-active' : ''}`}
             onClick={() => { onChange(item); setOpen(false) }}>
             {item.id === 'browser-default' ? <Search className="engine-logo" aria-hidden="true" />
               : <img className="engine-logo" src={engineLogos[item.id]} alt="" />}
-            <span className="engine-tooltip" role="tooltip" id={`${id}-${item.id}`}>{item.name}</span>
+            <span className="engine-tooltip" role="tooltip" id={`${id}-${item.id}`}>{t(item.name)}</span>
           </button>
         ))}
       </div>

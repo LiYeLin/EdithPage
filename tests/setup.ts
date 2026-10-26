@@ -6,3 +6,5 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
 })
+
+Object.defineProperty(navigator, 'language', { configurable: true, get: () => 'zh-CN' })

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation'
 import { useDraggable } from '@dnd-kit/core'
 import { X } from 'lucide-react'
 import { useContext, type CSSProperties, type MouseEvent } from 'react'
@@ -36,6 +37,7 @@ export function SiteTile({
   onRemove,
   onVisit,
 }: SiteTileProps) {
+  const t = useTranslation()
   const { longPressProps, consumeLongPressClick } = useLongPress(onEnterEditMode)
   const dragEnabled = useContext(SiteDragEnabledContext)
   const arrival = useContext(PendingArrivalContext)
@@ -93,8 +95,8 @@ export function SiteTile({
         rel="noreferrer"
         draggable={false}
         tabIndex={pending ? -1 : 0}
-        aria-label={isEditing ? `编辑 ${site.name}` : `${site.name}：${site.description}`}
-        title={isEditing ? `编辑 ${site.name}` : site.description}
+        aria-label={isEditing ? t("编辑 {0}", site.name) : site.name}
+        title={isEditing ? t("编辑 {0}", site.name) : site.name}
         onClick={handleClick}
         onContextMenu={(event) => event.preventDefault()}
       >
@@ -102,7 +104,7 @@ export function SiteTile({
         <strong>{site.name}</strong>
       </a>
       {isEditing && (
-        <button className="remove-site" type="button" tabIndex={pending ? -1 : 0} onClick={handleRemove} aria-label={`删除 ${site.name}`}>
+        <button className="remove-site" type="button" tabIndex={pending ? -1 : 0} onClick={handleRemove} aria-label={t("删除 {0}", site.name)}>
           <X size={12} strokeWidth={2.6} />
         </button>
       )}

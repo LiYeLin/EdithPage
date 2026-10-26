@@ -111,7 +111,7 @@ describe('FrequentSiteStrip', () => {
       { moduleId: 'b', site: config.modules[1].sites[0] },
     ]} editing={false} onEnterEditMode={onEnterEditMode} onEdit={vi.fn()} onRemove={vi.fn()} onVisit={onVisit} />)
     expect(screen.getByRole('heading', { name: '最常使用' }).nextElementSibling?.textContent).toBe('2')
-    const link = screen.getByRole('link', { name: 'Alpha：Alpha 说明' })
+    const link = screen.getByRole('link', { name: 'Alpha' })
     expect(link.getAttribute('href')).toBe('https://example.com/alpha')
     expect(link.getAttribute('target')).toBe('_blank')
     expect(link.getAttribute('rel')).toBe('noreferrer')
@@ -159,21 +159,21 @@ describe('SettingsDrawer', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
-  it('普通设置可切换主题、添加并规范化站点、创建分类与恢复默认', () => {
+  it('普通设置移除主题和描述，支持添加站点、分类与恢复默认', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_726_400_000_000)
     const onChange = vi.fn()
     const onReset = vi.fn()
     const { rerender } = render(<SettingsDrawer open activeModuleId="b" editingTarget={null} config={config} onClose={vi.fn()} onChange={onChange} onReset={onReset} />)
     expect(screen.getByRole('heading', { name: '定制工作台' })).not.toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /星云紫/ }))
-    expect(onChange).toHaveBeenLastCalledWith({ ...config, accent: 'violet' })
+    expect(screen.queryByText('主题色')).toBeNull()
+    expect(screen.queryByPlaceholderText(/一句话描述/)).toBeNull()
 
     fireEvent.change(screen.getByPlaceholderText('站点名称'), { target: { value: '  新站点  ' } })
     fireEvent.change(screen.getByPlaceholderText('https://example.com'), { target: { value: ' docs.example.com/path ' } })
     fireEvent.click(screen.getByRole('button', { name: '添加到「分类 B」' }))
     const added = onChange.mock.calls.at(-1)?.[0] as NavigationConfig
     expect(added.modules[1].sites.at(-1)).toEqual({
-      id: '1726400000000', name: '新站点', url: 'https://docs.example.com/path', description: '自定义站点',
+      id: '1726400000000', name: '新站点', url: 'https://docs.example.com/path', description: '',
     })
     expect((screen.getByPlaceholderText('站点名称') as HTMLInputElement).value).toBe('')
 
@@ -181,7 +181,7 @@ describe('SettingsDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: '新建分类' }))
     const withModule = onChange.mock.calls.at(-1)?.[0] as NavigationConfig
     expect(withModule.modules.at(-1)).toEqual({
-      id: 'module-1726400000000', title: '新分类', description: '你的自定义资源分组', accent: '#9ff7cd', sites: [],
+      id: 'module-1726400000000', title: '新分类', description: '', accent: '#9ff7cd', sites: [],
     })
     rerender(<SettingsDrawer open activeModuleId={null} editingTarget={null} config={withModule} onClose={vi.fn()} onChange={onChange} onReset={onReset} />)
     expect((screen.getByLabelText('所属分类') as HTMLSelectElement).value).toBe('module-1726400000000')
@@ -203,10 +203,9 @@ describe('SettingsDrawer', () => {
     const { unmount } = render(<SettingsDrawer open activeModuleId={null} editingTarget={{ type: 'site', moduleId: 'a', siteId: 'alpha' }} config={config} onClose={onClose} onChange={onChange} onReset={vi.fn()} />)
     expect(screen.getByRole('heading', { name: '编辑站点' })).not.toBeNull()
     fireEvent.change(screen.getByPlaceholderText('站点名称'), { target: { value: '  Alpha 新名  ' } })
-    fireEvent.change(screen.getByPlaceholderText('一句话描述（可选）'), { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: '保存站点' }))
     const sameModule = onChange.mock.calls[0][0] as NavigationConfig
-    expect(sameModule.modules[0].sites[0]).toMatchObject({ name: 'Alpha 新名', description: '自定义站点' })
+    expect(sameModule.modules[0].sites[0]).toMatchObject({ name: 'Alpha 新名', description: config.modules[0].sites[0].description })
     expect(onClose).toHaveBeenCalledTimes(1)
     unmount()
 
@@ -220,18 +219,17 @@ describe('SettingsDrawer', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('编辑分类可修改名称、默认说明和强调色，但保留站点', () => {
+  it('编辑分类可修改名称和强调色，保留旧描述及站点', () => {
     const onChange = vi.fn()
     const onClose = vi.fn()
     render(<SettingsDrawer open activeModuleId={null} editingTarget={{ type: 'module', moduleId: 'a' }} config={config} onClose={onClose} onChange={onChange} onReset={vi.fn()} />)
     expect(screen.getByRole('heading', { name: '编辑分类' })).not.toBeNull()
     fireEvent.change(screen.getByPlaceholderText('分类名称'), { target: { value: '  新分类名  ' } })
-    fireEvent.change(screen.getByPlaceholderText('一句话描述'), { target: { value: ' ' } })
     fireEvent.click(screen.getByRole('button', { name: '使用颜色 #ff9fb7' }))
     fireEvent.click(screen.getByRole('button', { name: '保存分类' }))
     const updated = onChange.mock.calls[0][0] as NavigationConfig
     expect(updated.modules[0]).toEqual({
-      ...config.modules[0], title: '新分类名', description: '你的自定义资源分组', accent: '#ff9fb7',
+      ...config.modules[0], title: '新分类名', accent: '#ff9fb7',
     })
     expect(onClose).toHaveBeenCalledTimes(1)
   })

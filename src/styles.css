@@ -23,8 +23,6 @@ a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
 a { color: inherit; text-decoration: none; }
 
-.app[data-accent="violet"] { --accent: #c6c1ff; --accent-rgb: 198, 193, 255; }
-.app[data-accent="orange"] { --accent: #ffd09d; --accent-rgb: 255, 208, 157; }
 
 .app {
   position: relative;
@@ -508,22 +506,6 @@ main { padding: clamp(20px, calc(37vh - 245px), 300px) 0 26px; }
   background-size: 5px 5px;
   background-repeat: no-repeat;
 }
-.accent-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
-.accent-picker button {
-  height: 40px;
-  border: 1px solid rgba(255,255,255,.09);
-  border-radius: 10px;
-  background: rgba(255,255,255,.04);
-  color: rgba(235,242,238,.58);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 9px;
-  cursor: pointer;
-}
-.accent-picker button.is-selected { color: #fff; border-color: rgba(var(--accent-rgb),.45); background: rgba(var(--accent-rgb),.1); }
-.accent-picker i { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
 .add-site-form { display: grid; gap: 7px; }
 .primary-button,
 .square-button {
@@ -808,3 +790,6 @@ main { width: min(100% - 22px, 1500px); }
 .template-picker [role="alert"] { color: #ffc3b3; font-size: 13px; }
 .template-picker [role="status"] { font-size: 13px; color: var(--muted); }
 .storage-error { position: fixed; z-index: 90; left: 50%; top: 72px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 12px; border: 1px solid #ffc3b3; border-radius: 12px; background: #271c18; color: #ffc3b3; font-size: 13px; }
+
+.preference-settings { display: grid; gap: 10px; }
+.preference-settings select { width: 100%; }

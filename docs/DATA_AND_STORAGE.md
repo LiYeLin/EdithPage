@@ -11,7 +11,9 @@
 | `NavigationConfig` | `templateId`、`modules`、`accent`，可选 `iconPositionPersistence` |
 | `IconPosition` | `x`、`y` 为 0–1 归一化坐标，`angle` 为有限数值旋转角（Matter 使用弧度） |
 
-全局 `accent` 仅接受 `mint` / `violet` / `orange`；分类 `accent` 为字符串。`templateId` 当前为 `bubble` / `matter` / `beijing` / `plain`。`shortcut` 是可选数据字段，不代表已有站点快捷键绑定。
+主题色和描述配置入口已移除，页面统一使用默认主题配色。旧全局 `accent` 和站点/分类 `description` 字段保留用于兼容存储及备份，编辑已有条目时保留这些字段；新增条目的描述为空字符串，新分类使用默认强调色。描述不再用于站点悬停提示或无障碍名称。分类强调色仍可单独编辑。
+
+兼容字段全局 `accent` 仅接受 `mint` / `violet` / `orange`；分类 `accent` 为字符串。`templateId` 当前为 `bubble` / `matter` / `beijing` / `plain`。`shortcut` 是可选数据字段，不代表已有站点快捷键绑定。
 
 位置配置结构：
 
@@ -71,3 +73,9 @@ iconPositionPersistence?: {
 导入采用整体替换语义：备份缺失的受管理键会删除，引导值为 `false` 时也删除该键。写入失败会尝试恢复旧快照，但不是底层原子事务，恢复也可能失败。只有导入成功后 App 才刷新页面。
 
 “恢复默认”仅调用 `resetContent`：保留当前 `templateId`，其余导航配置恢复默认；另外三个独立键不清除。
+
+## 本机语言和图标服务偏好
+
+`edith-navigation-preferences-v1` 保存 `{ language: 'auto' | 'zh-CN' | 'en', iconService: 'domestic' | 'google' }`，网页版使用 localStorage，插件使用 chrome.storage.local。首次默认值由浏览器语言决定：简体中文使用国内服务，其余使用 Google；已有手动选择不随界面语言变化。
+
+该键独立于导航配置和 v1 JSON 备份。导入旧备份、恢复默认导航内容均保留本机偏好，不需要配置迁移。图片使用浏览器和服务端缓存，不存入导航配置或扩展存储。扩展初始化会预加载偏好，并订阅其他新标签页的修改。

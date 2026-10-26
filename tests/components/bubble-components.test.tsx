@@ -200,7 +200,7 @@ describe('SiteTile 与 FrequentSites', () => {
     const onVisit = vi.fn()
     const onEnterEditMode = vi.fn()
     render(tile({ onVisit, onEnterEditMode }))
-    const link = screen.getByRole('link', { name: 'Alpha：Alpha 说明' })
+    const link = screen.getByRole('link', { name: 'Alpha' })
     expect(link.getAttribute('href')).toBe('https://example.com/alpha')
     expect(link.getAttribute('target')).toBe('_blank')
     expect(link.getAttribute('rel')).toBe('noreferrer')
@@ -331,7 +331,7 @@ describe('ModulePanel', () => {
     view.rerender(panel({ revealSite: { siteId: 'site-14' } }))
     act(() => vi.advanceTimersByTime(40))
     expect(list.scrollTo).toHaveBeenLastCalledWith({ left: 320, behavior: 'instant' })
-    expect(screen.getByRole('link', { name: '站点 14：说明 14' })).toBe(document.activeElement)
+    expect(screen.getByRole('link', { name: '站点 14' })).toBe(document.activeElement)
   })
 
   it('reduced-motion 使用即时分页；viewport resize 重新计算公开尺寸', () => {
@@ -365,7 +365,7 @@ describe('BubbleTemplate', () => {
     const { container, rerender } = render(<BubbleTemplate {...templateProps({ actions: templateActions, onInteractionStateChange: report })} />)
     const root = container.querySelector('[data-template="bubble"]')!
     expect(root.classList.contains('is-editing')).toBe(false)
-    fireEvent.click(screen.getAllByRole('link', { name: 'Alpha：Alpha 说明' })[0])
+    fireEvent.click(screen.getAllByRole('link', { name: 'Alpha' })[0])
     expect(templateActions.visitSite).toHaveBeenCalledWith('alpha')
     expect(dnd.draggable).toHaveBeenCalledWith(expect.objectContaining({ disabled: true }))
 

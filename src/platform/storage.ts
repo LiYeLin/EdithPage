@@ -5,7 +5,8 @@ export const STORAGE_KEYS = [
   'edith-navigation-onboarding-completed-v1',
 ] as const
 
-export type StorageKey = typeof STORAGE_KEYS[number]
+const ALL_STORAGE_KEYS = [...STORAGE_KEYS, 'edith-navigation-preferences-v1'] as const
+export type StorageKey = typeof ALL_STORAGE_KEYS[number]
 
 type ExtensionStorageArea = {
   get(keys: readonly string[]): Promise<Record<string, unknown>>
@@ -47,9 +48,9 @@ export async function initializeStorage(): Promise<void> {
   const storage = extensionStorage()
   if (!storage) return
 
-  const values = await storage.get(STORAGE_KEYS)
+  const values = await storage.get(ALL_STORAGE_KEYS)
   extensionCache.clear()
-  for (const key of STORAGE_KEYS) {
+  for (const key of ALL_STORAGE_KEYS) {
     if (typeof values[key] === 'string') extensionCache.set(key, values[key])
   }
 }
@@ -133,7 +134,7 @@ export async function replaceStoredValues(values: Partial<Record<StorageKey, str
     const toRemove = STORAGE_KEYS.filter((key) => values[key] === undefined)
     if (Object.keys(toSet).length > 0) await storage.set(toSet)
     if (toRemove.length > 0) await storage.remove(toRemove)
-    extensionCache.clear()
+    for (const key of STORAGE_KEYS) extensionCache.delete(key)
     for (const [key, value] of Object.entries(values) as [StorageKey, string][]) extensionCache.set(key, value)
   } catch (error) {
     try {
@@ -142,7 +143,7 @@ export async function replaceStoredValues(values: Partial<Record<StorageKey, str
     } catch {
       // Preserve the original import failure; the caller can report it and avoid reloading.
     }
-    extensionCache.clear()
+    for (const key of STORAGE_KEYS) extensionCache.delete(key)
     for (const [key, value] of Object.entries(previous) as [StorageKey, string | null][]) {
       if (value !== null) extensionCache.set(key, value)
     }

@@ -34,6 +34,12 @@ export function validateExtension(folder, browser) {
     assert(existsSync(resolve(folder, icon)), `${browser}: 缺少图标 ${icon}`)
   }
 
+  assert(manifest.default_locale === 'en', `${browser}: 缺少默认语言`)
+  assert(manifest.name === '__MSG_extensionName__' && manifest.description === '__MSG_extensionDescription__', `${browser}: 未启用本地化名称`)
+  for (const locale of ['en', 'zh_CN']) {
+    const messages = JSON.parse(readFileSync(resolve(folder, '_locales', locale, 'messages.json'), 'utf8'))
+    assert(messages.extensionName?.message && messages.extensionDescription?.message, `${browser}: 缺少 ${locale} 翻译`)
+  }
   const files = walk(folder)
   assert(!files.some((file) => file.endsWith('.map')), `${browser}: 商店包不能包含 source map`)
   const executableText = files
@@ -41,7 +47,7 @@ export function validateExtension(folder, browser) {
     .map((file) => readFileSync(file, 'utf8'))
     .join('\n')
 
-  for (const forbidden of ['www.google.com/s2/favicons', '@vercel/analytics', '/_vercel/insights']) {
+  for (const forbidden of ['@vercel/analytics', '/_vercel/insights']) {
     assert(!executableText.includes(forbidden), `${browser}: 构建产物包含禁用资源 ${forbidden}`)
   }
   const html = readFileSync(resolve(folder, 'index.html'), 'utf8')

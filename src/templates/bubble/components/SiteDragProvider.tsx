@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation'
 import type { TemplateInteractionState } from '../../types'
 import { useBubbleRuntime } from '../runtime'
 import {
@@ -38,6 +39,7 @@ type SiteDragProviderProps = {
 }
 
 export function SiteDragProvider({ children, modules, enabled, onMove, onInteractionStateChange }: SiteDragProviderProps) {
+  const t = useTranslation()
   const { root: templateRoot } = useBubbleRuntime()
   const mounted = useRef(false)
   const interaction = useRef<TemplateInteractionState>({ dragging: false, settling: false })
@@ -240,8 +242,8 @@ export function SiteDragProvider({ children, modules, enabled, onMove, onInterac
     finishInput()
   }
 
-  const siteName = (id: string) => modules.flatMap((module) => module.sites).find((site) => site.id === id)?.name ?? '站点'
-  const moduleName = (id: string) => modules.find((module) => module.id === id)?.title ?? '分类'
+  const siteName = (id: string) => modules.flatMap((module) => module.sites).find((site) => site.id === id)?.name ?? t("站点")
+  const moduleName = (id: string) => modules.find((module) => module.id === id)?.title ?? t("分类")
 
   return (
     <SiteDragEnabledContext.Provider value={enabled}>
@@ -263,15 +265,15 @@ export function SiteDragProvider({ children, modules, enabled, onMove, onInterac
       onDragEnd={endDrag}
       onDragCancel={cancelDrag}
       accessibility={{
-        screenReaderInstructions: { draggable: '编辑模式下，按空格提起站点，方向键选择分类，空格或回车放下，Escape 取消。轻点或回车编辑站点。' },
+        screenReaderInstructions: { draggable: t("编辑模式下，按空格提起站点，方向键选择分类，空格或回车放下，Escape 取消。轻点或回车编辑站点。") },
         announcements: {
-          onDragStart: ({ active }) => `已提起 ${siteName(active.data.current?.siteId)}。方向键选择分类，空格放下，Escape 取消。`,
-          onDragOver: ({ active, over }) => !over ? '当前没有可接收的分类。'
-            : over.id === active.data.current?.moduleId ? '仍在原分类，放下不会移动。'
-              : `放入 ${moduleName(String(over.id))}。`,
+          onDragStart: ({ active }) => t("已提起 {0}。方向键选择分类，空格放下，Escape 取消。", siteName(active.data.current?.siteId)),
+          onDragOver: ({ active, over }) => !over ? t("当前没有可接收的分类。")
+            : over.id === active.data.current?.moduleId ? t("仍在原分类，放下不会移动。")
+              : t("放入 {0}。", moduleName(String(over.id))),
           onDragEnd: ({ over }) => over && movedRef.current
-            ? `已放入 ${moduleName(String(over.id))}。可使用撤销按钮恢复。` : '未移动站点。',
-          onDragCancel: () => '已取消移动。',
+            ? t("已放入 {0}。可使用撤销按钮恢复。", moduleName(String(over.id))) : t("未移动站点。"),
+          onDragCancel: () => t("已取消移动。"),
         },
       }}
     >

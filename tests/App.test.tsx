@@ -240,7 +240,7 @@ describe('App 启动与共享数据', () => {
     await renderApp({ config: stored })
 
     expect(screen.getByTestId('template-B')).toBeTruthy()
-    expect(document.querySelector('.app')?.getAttribute('data-accent')).toBe('orange')
+    expect(document.querySelector('.app')?.getAttribute('data-accent')).toBe('mint')
     expect(siteNames('分类一')).toEqual(['Alpha', 'Beta', 'Gamma'])
     expect(screen.queryByRole('dialog', { name: '首次访问引导' })).toBeNull()
   })
@@ -731,17 +731,18 @@ describe('App 搜索、引导与存储错误', () => {
     await screen.findByTestId('template-A')
 
     fireEvent.click(screen.getByRole('button', { name: '打开设置' }))
-    fireEvent.click(screen.getByRole('button', { name: '日落橙' }))
-    expect(document.querySelector('.app')?.getAttribute('data-accent')).toBe('orange')
+    fireEvent.change(screen.getByPlaceholderText('例如：设计灵感'), { target: { value: '新增分类' } })
+    fireEvent.click(screen.getByRole('button', { name: '新建分类' }))
     expect(screen.getByRole('alert').textContent).toContain('无法保存到浏览器')
 
     setItem.mockImplementation(function (this: Storage, key, value) {
       return originalSetItem.call(this, key, value)
     })
-    fireEvent.click(screen.getByRole('button', { name: '薄荷绿' }))
+    fireEvent.change(screen.getByPlaceholderText('例如：设计灵感'), { target: { value: '再次新增' } })
+    fireEvent.click(screen.getByRole('button', { name: '新建分类' }))
     expect(document.querySelector('.app')?.getAttribute('data-accent')).toBe('mint')
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(JSON.parse(localStorage.getItem(CONFIG_KEY) ?? '{}').accent).toBe('mint')
+    expect(JSON.parse(localStorage.getItem(CONFIG_KEY) ?? '{}').modules.at(-1).title).toBe('再次新增')
   })
 
   it('卸载时清理活动撤销定时器和模板选择焦点恢复定时器', async () => {

@@ -11,7 +11,7 @@ Edith 应采用“一套业务代码、多个浏览器包”的方案：
 - 以 Chromium Manifest V3（MV3）作为唯一主线，Chrome、Edge、360、QQ 共用业务代码并分别生成清单和安装包。
 - 360、QQ 作为最新版 Windows Chromium 内核的兼容目标，不承诺商店上架；360 公开开发文档仍大量停留在 MV2 时代，QQ 没有公开、可复现的开发者提交入口。
 - v1 只做“新标签页导航”这一项单一用途，权限仅申请 `storage`，不申请网页访问、历史、标签页、Cookie 等权限，也不需要后台 Service Worker。
-- 扩展包必须完全本地化：移除扩展版中的 Vercel Analytics，停止默认请求 Google favicon 服务，所有可执行代码和首屏资源随包发布。
+- 扩展包的可执行代码必须随包发布，移除 Vercel Analytics。2026-10-26 更新：允许使用用户所选的 Cravatar 或 Google 服务加载网站图标，内置图标仍优先，详见隐私政策。
 
 推荐顺序：**Edge → Chrome → 360/QQ 兼容验证 → 搜狗兼容验证**。Edge、Chrome 走正式商店流程；360、QQ 仅生成兼容安装包并等待有效发布渠道。
 
@@ -243,7 +243,7 @@ export interface EdithStorage {
 | 当前实现 | 风险 | 建议 |
 | --- | --- | --- |
 | `src/main.tsx` 引入 `@vercel/analytics/react` | 远程请求、数据披露、扩展 CSP 和审核风险 | 扩展构建完全移除；未来如需统计，单独设计用户可关闭的第一方最小事件方案 |
-| `src/data/siteIcons.ts` 默认请求 Google favicon | 在大陆可能不可达，并把用户配置的域名发送给第三方 | 扩展版只用随包图标和文字回退；远程图标必须改为显式选择并在隐私政策披露 |
+| `src/data/siteIcons.ts` 默认请求 Google favicon | 在大陆可能不可达，并把用户配置的域名发送给第三方 | 2026-10-26 用户确认：按浏览器语言选择国内 Cravatar / Google 默认服务，设置可手动切换；仅发送域名并在隐私政策披露 |
 | 配置、访问次数、引导状态使用 `localStorage` | 不能与 Service Worker 共用，清理浏览数据时行为不稳定 | 迁移到平台存储接口；扩展使用 `chrome.storage.local` |
 | 多个模板通过动态 `import()` 加载 | 构建后本地 chunk 合法，但需要确认所有 chunk 都包含在包内 | 构建后扫描 HTML/JS，禁止任何远程脚本和远程模块地址 |
 | 新标签页包含多种模板和设置 | 可能被误判为多用途 | 商店文案统一归入“可配置新标签页导航”；模板只是同一用途的外观与交互选项 |
@@ -294,7 +294,7 @@ export interface EdithStorage {
 
 - 增加 `newtab.html`、MV3 清单、扩展图标和多目标构建脚本。
 - 引入存储适配层，把现有四组持久化数据改接 `chrome.storage.local`，并提供网页数据 JSON 导入。
-- 移除扩展版 Analytics 和远程 favicon。
+- 移除扩展版 Analytics；远程 favicon 已按 2026-10-26 确认的新策略接入。
 - 补 Chrome/Edge 自动化测试。
 
 ### 阶段二：发布

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation'
 import type { FrequentSiteItem } from '../../../types'
 import { SiteTile } from './SiteTile'
 
@@ -18,11 +19,12 @@ export function FrequentSites({
   onRemoveSite,
   onVisit,
 }: FrequentSitesProps) {
+  const t = useTranslation()
   return (
     <section className="frequent-panel" aria-labelledby="frequent-title">
       <header className="frequent-header">
         <span className="frequent-dot" />
-        <h2 id="frequent-title">最常使用</h2>
+        <h2 id="frequent-title">{t("最常使用")}</h2>
         <span>{sites.length}</span>
       </header>
 

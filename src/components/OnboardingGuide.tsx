@@ -1,3 +1,4 @@
+import { useTranslation } from '../i18n/useTranslation'
 import { useEffect } from 'react'
 import { isExtensionSearch } from '../platform/search'
 
@@ -13,22 +14,23 @@ const content = [
 ] as const
 
 export function OnboardingGuide({ step, onNext, onSkip }: Props) {
+  const t = useTranslation()
   useEffect(() => {
     document.body.classList.add('onboarding-active')
     return () => document.body.classList.remove('onboarding-active')
   }, [])
   const [title, description] = step === 2 && isExtensionSearch()
-    ? ['使用默认搜索', '默认跟随浏览器的搜索设置，也可通过图标临时切换引擎；新标签页会恢复浏览器默认。']
+    ? [t("使用默认搜索"), t("默认跟随浏览器的搜索设置，也可通过图标临时切换引擎；新标签页会恢复浏览器默认。")]
     : content[step - 1]
-  return <div className={`onboarding-guide onboarding-step-${step}`} role="dialog" aria-modal="true" aria-label="首次访问引导">
+  return <div className={`onboarding-guide onboarding-step-${step}`} role="dialog" aria-modal="true" aria-label={t("首次访问引导")}>
     <div className="onboarding-backdrop" />
     <div className="onboarding-card">
-      <div className="onboarding-kicker">快速了解 · {step}/4</div>
-      <h2>{title}</h2><p>{description}</p>
+      <div className="onboarding-kicker">{t("快速了解 ·")} {step}/4</div>
+      <h2>{t(title)}</h2><p>{t(description)}</p>
       <div className="onboarding-footer">
-        <button className="onboarding-skip" type="button" onClick={onSkip}>跳过引导</button>
-        <div className="onboarding-dots" aria-label={`第 ${step} 步，共四步`}>{content.map((_, i) => <span key={i} className={i + 1 === step ? 'is-active' : ''} />)}</div>
-        <button className="onboarding-next" type="button" onClick={onNext}>{step === 1 ? '开始使用' : '下一步'}</button>
+        <button className="onboarding-skip" type="button" onClick={onSkip}>{t("跳过引导")}</button>
+        <div className="onboarding-dots" aria-label={t("第 {0} 步，共四步", step)}>{content.map((_, i) => <span key={i} className={i + 1 === step ? 'is-active' : ''} />)}</div>
+        <button className="onboarding-next" type="button" onClick={onNext}>{step === 1 ? t("开始使用") : t("下一步")}</button>
       </div>
     </div>
   </div>

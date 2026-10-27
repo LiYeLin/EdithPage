@@ -737,11 +737,11 @@ main { width: min(100% - 22px, 1500px); }
 .template-button:hover { border-color:rgba(var(--accent-rgb),.56); }
 .onboarding-guide { position:fixed; inset:0; z-index:100; pointer-events:none; }
 .onboarding-backdrop { position:absolute; inset:0; background:rgba(3,8,6,.62); pointer-events:none; }
-.onboarding-card { position:absolute; left:50%; top:50%; width:min(420px,calc(100% - 32px)); transform:translate(-50%,-50%); padding:25px; border:1px solid rgba(255,255,255,.2); border-radius:22px; background:rgba(19,31,26,.94); box-shadow:0 24px 80px rgba(0,0,0,.45); pointer-events:auto; animation:onboardingIn .35s ease both; }
+.onboarding-card { position:absolute; left:50%; top:50%; width:min(420px,calc(100% - 32px)); max-height:calc(100dvh - 32px); overflow-y:auto; transform:translate(-50%,-50%); padding:25px; border:1px solid rgba(255,255,255,.2); border-radius:22px; background:rgba(19,31,26,.94); box-shadow:0 24px 80px rgba(0,0,0,.45); pointer-events:auto; animation:onboardingIn .35s ease both; }
 .onboarding-kicker { color:var(--accent); font-size:12px; letter-spacing:.12em; text-transform:uppercase; }
 .onboarding-card h2 { margin:10px 0 8px; font-size:25px; }.onboarding-card p { margin:0; color:var(--muted); line-height:1.7; }.onboarding-footer { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:25px; }.onboarding-footer button { border:0; cursor:pointer; }.onboarding-skip { background:none; color:var(--muted); font-size:13px; }.onboarding-next { padding:10px 16px; border-radius:11px; color:#102019; background:var(--accent); font-weight:700; }.onboarding-dots { display:flex; gap:6px; }.onboarding-dots span { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.25); }.onboarding-dots .is-active { width:18px; border-radius:8px; background:var(--accent); }
-@keyframes onboardingIn { from { opacity:0; transform:translate(-50%,-46%) scale(.97) } to { opacity:1; transform:translate(-50%,-50%) scale(1) } }
-@media (max-width:560px) { .onboarding-card { top:auto; bottom:20px; transform:translateX(-50%); } @keyframes onboardingIn { from { opacity:0; transform:translate(-50%,8%) } to { opacity:1; transform:translateX(-50%) } } }
+@keyframes onboardingIn { from { opacity:0 } to { opacity:1 } }
+@media (max-width:560px) { .onboarding-card { top:auto; bottom:20px; transform:translateX(-50%); } }
 /* Place each contextual hint beside the interaction it describes. */
 .app:has(.onboarding-step-2) .engine-picker,
 .app:has(.onboarding-step-3) .template-button,
@@ -768,9 +768,18 @@ main { width: min(100% - 22px, 1500px); }
 .onboarding-step-4 .onboarding-card { left: 50%; top: min(72%, 680px); }
 @keyframes onboardingPulse { 50% { opacity: .55; transform: scale(1.025); } }
 @media (max-width: 560px) {
-  .onboarding-step-2 .onboarding-card { top: 19%; }
-  .onboarding-step-3 .onboarding-card { left: 16px; right: 16px; top: 90px; width: auto; }
+  .onboarding-step-2 .onboarding-card { top: 19%; bottom: auto; }
+  .onboarding-step-3 .onboarding-card { left: 16px; right: 16px; top: 90px; bottom: auto; width: auto; transform: none; }
   .onboarding-step-4 .onboarding-card { top: auto; bottom: 20px; transform: translateX(-50%); }
+}
+@media (max-height: 600px) {
+  .onboarding-guide .onboarding-card { left: 50%; right: auto; top: auto; bottom: 16px; width: min(420px, calc(100% - 32px)); transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-card,
+  .app:has(.onboarding-guide) .engine-picker::after,
+  .app:has(.onboarding-guide) .template-button::after,
+  .app:has(.onboarding-guide) [data-onboarding-edit]::after { animation: none; }
 }
 
 

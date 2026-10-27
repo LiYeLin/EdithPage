@@ -1,4 +1,5 @@
-import { defaultConfig } from '../data/defaultConfig.ts'
+import { defaultConfig, getDefaultConfig } from '../data/defaultConfig.ts'
+import type { Locale } from '../i18n/preferences'
 import type { IconPosition, IconPositionPersistence, NavigationConfig } from '../types'
 import type { TemplateAppearance, TemplateDefinition, TemplateInteractionState } from './types'
 
@@ -97,8 +98,8 @@ export function selectTemplate(config: NavigationConfig, templateId: string): Na
   return config.templateId === templateId ? config : { ...config, templateId }
 }
 
-export function resetContent(config: NavigationConfig): NavigationConfig {
-  return { ...structuredClone(defaultConfig), templateId: config.templateId }
+export function resetContent(config: NavigationConfig, locale: Locale = 'zh-CN'): NavigationConfig {
+  return { ...getDefaultConfig(locale), templateId: config.templateId }
 }
 
 export function canSwitchTemplate(state: TemplateInteractionState): boolean {

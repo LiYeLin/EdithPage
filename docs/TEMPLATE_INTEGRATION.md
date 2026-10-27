@@ -10,6 +10,8 @@
 
 `onInteractionStateChange` 只报告 `{ dragging, settling }`：输入拖拽期间设 `dragging: true`，释放后如果视觉仍未完成则设 `settling: true`，收尾或取消时恢复两个 `false`。不要通过交互状态上报逐帧位置。公共层会在这两种状态下拒绝模板切换。
 
+`onCapacityValidatorChange` 是可选的运行时校验注册入口：传入 `(modules) => string | null`，返回空值表示可容纳，字符串表示拒绝原因；测量变化后更新，卸载时传 `null` 清理。目前公共层仅对气泡模板的新增和跨组移动启用该校验，删除、撤销和导入不受它限制。
+
 `iconPositionPersistence` 是物理图标/北京模板的位置配置；需要持久化时调用可选的 `actions.saveIconPositions(templateId, positions)`，坐标需归一化为 0–1。模板不直接写存储。
 
 模板还可以在注册信息中声明 `appearance`，由 App 全局壳层应用到整页背景：`backgroundImage` 使用本地 `public` 资源路径，`backgroundPosition` 可选。背景不属于 `NavigationTemplateProps`，也不应在模板组件内部重复渲染；未声明时使用 `/edith-landscape.jpg` 作为全局兜底。

@@ -308,45 +308,18 @@ describe('ModulePanel', () => {
     expect(dnd.droppable).toHaveBeenLastCalledWith(expect.objectContaining({ disabled: false }))
   })
 
-  it('分页按钮滚动，scroll 事件更新 inert 与页码；revealSite 定位并恢复焦点', () => {
+  it('全部网址直接展示，无分页或 inert，revealSite 恢复焦点', () => {
     vi.useFakeTimers()
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => window.setTimeout(() => callback(performance.now()), 16))
-    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => window.clearTimeout(id))
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => window.setTimeout(() => callback(performance.now()), 16))
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => window.clearTimeout(id))
     const view = render(panel())
-    act(() => vi.advanceTimersByTime(20))
-    const list = view.container.querySelector('.site-list') as HTMLDivElement
-    const pages = view.container.querySelectorAll('.bubble-page')
-    expect(pages).toHaveLength(2)
-    expect(pages[0].hasAttribute('inert')).toBe(false)
-    expect(pages[1].hasAttribute('inert')).toBe(true)
-
-    fireEvent.click(screen.getByRole('button', { name: '多页分类 向右滑动' }))
-    expect(list.scrollTo).toHaveBeenCalledWith({ left: 320, behavior: 'smooth' })
-    list.scrollLeft = 320
-    fireEvent.scroll(list)
-    expect(screen.getByText('2 / 2')).not.toBeNull()
-    expect(pages[0].hasAttribute('inert')).toBe(true)
-    expect(pages[1].hasAttribute('inert')).toBe(false)
-
+    expect(view.container.querySelectorAll('.bubble-page')).toHaveLength(1)
+    expect(view.container.querySelectorAll('[inert]')).toHaveLength(0)
+    expect(screen.getAllByRole('link')).toHaveLength(15)
+    expect(view.container.querySelector('.bubble-pagination')).toBeNull()
     view.rerender(panel({ revealSite: { siteId: 'site-14' } }))
-    act(() => vi.advanceTimersByTime(40))
-    expect(list.scrollTo).toHaveBeenLastCalledWith({ left: 320, behavior: 'instant' })
+    act(() => vi.advanceTimersByTime(20))
     expect(screen.getByRole('link', { name: '站点 14' })).toBe(document.activeElement)
-  })
-
-  it('reduced-motion 使用即时分页；viewport resize 重新计算公开尺寸', () => {
-    installDomStubs(true)
-    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 500 })
-    const view = render(panel())
-    const section = view.container.querySelector('.module-panel') as HTMLElement
-    const compactWidth = section.style.width
-    fireEvent.click(screen.getByRole('button', { name: '多页分类 向右滑动' }))
-    const list = view.container.querySelector('.site-list') as HTMLDivElement
-    expect(list.scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: 'instant' }))
-
-    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1280 })
-    fireEvent(window, new Event('resize'))
-    expect(section.style.width).not.toBe(compactWidth)
   })
 
   it('仅不同分类的活跃拖拽显示为可放置目标', () => {

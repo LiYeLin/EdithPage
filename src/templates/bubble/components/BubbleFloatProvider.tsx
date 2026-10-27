@@ -23,7 +23,7 @@ type BubbleRegistration = {
   y: MotionValue<number>
 }
 
-export function BubbleFloatProvider({ blocked, children }: { blocked: boolean; children: ReactNode }) {
+export function BubbleFloatProvider({ blocked, children, layoutVersion }: { blocked: boolean; children: ReactNode; layoutVersion?: unknown }) {
   const { root: templateRoot } = useBubbleRuntime()
   const registrations = useRef(new Map<string, BubbleRegistration>())
   const reducedMotion = useMotionPreference()
@@ -47,6 +47,7 @@ export function BubbleFloatProvider({ blocked, children }: { blocked: boolean; c
       y.set(0)
     })
 
+    reset()
     if (!desktopMotionAllowed) {
       reset()
       return
@@ -134,7 +135,7 @@ export function BubbleFloatProvider({ blocked, children }: { blocked: boolean; c
       window.removeEventListener('scroll', activity, true)
       document.removeEventListener('visibilitychange', visibility)
     }
-  }, [blocked, desktopMotionAllowed, templateRoot])
+  }, [blocked, desktopMotionAllowed, templateRoot, layoutVersion])
 
   const context = useMemo(() => ({ register }), [register])
   return <BubbleFloatContext.Provider value={context}>{children}</BubbleFloatContext.Provider>

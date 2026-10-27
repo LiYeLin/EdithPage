@@ -1,58 +1,39 @@
-import { packEnclose, packSiblings } from 'd3-hierarchy'
-
-export type BubbleTileMetrics = {
-  width: number
-  height: number
-  icon: number
-  radius: number
-}
-
+export type BubbleTileMetrics = { width: number; height: number; icon: number; radius: number }
 export const desktopBubbleTile: BubbleTileMetrics = { width: 64, height: 70, icon: 46, radius: 41 }
 export const compactBubbleTile: BubbleTileMetrics = { width: 58, height: 62, icon: 40, radius: 36 }
-
-function buildLayouts(tile: BubbleTileMetrics) {
-  let previousDiameter = 144
-
-  return Array.from({ length: 13 }, (_, siteCount) => {
-    // The add shortcut always occupies a slot, so entering edit mode does not inflate the bubble.
-    const circles = packSiblings(Array.from({ length: siteCount + 1 }, () => ({ r: tile.radius })))
-    const enclosure = packEnclose(circles)
-    // Reserve space for rectangular names, focus rings and the delete badge, not just favicon centers.
-    const cornerRadius = Math.hypot(tile.width / 2, tile.height / 2)
-    const requiredDiameter = Math.ceil(2 * (enclosure.r - tile.radius + cornerRadius + 16))
-    // Packing can give two successive counts the same radius; retain a visible growth step.
-    const diameter = Math.max(previousDiameter + 6, requiredDiameter)
-    previousDiameter = diameter
-
-    return {
-      diameter,
-      // Keep reading/tab order top-to-bottom, then left-to-right (the final slot is Add).
-      positions: circles
-        .map((circle) => ({ x: circle.x - enclosure.x, y: circle.y - enclosure.y }))
-        .sort((a, b) => Math.abs(a.y - b.y) > 0.01 ? a.y - b.y : a.x - b.x),
-    }
-  })
+export type BubbleContents = {
+  tile: BubbleTileMetrics
+  diameter: number
+  positions: { x: number; y: number }[]
 }
 
-const desktopLayouts = buildLayouts(desktopBubbleTile)
-const compactLayouts = buildLayouts(compactBubbleTile)
+const cache = new Map<string, BubbleContents>()
 
-export function getBubbleLayout(siteCount: number, viewportWidth: number) {
-  const compact = viewportWidth <= 620
-  const tile = compact ? compactBubbleTile : desktopBubbleTile
-  const layouts = compact ? compactLayouts : desktopLayouts
-  const maxDiameter = Math.min(compact ? 336 : 400, viewportWidth - 44)
-  let pageSize = 1
-
-  for (let count = 1; count < layouts.length; count += 1) {
-    if (layouts[count].diameter <= maxDiameter) pageSize = count
-  }
-
-  return {
+// Every site and the Add shortcut have a real slot, including outside edit mode.
+export function getBubbleContents(siteCount: number, tile = desktopBubbleTile): BubbleContents {
+  const count = Math.max(0, Math.floor(siteCount))
+  const key = `${tile.width}:${tile.height}:${tile.radius}:${count}`
+  const cached = cache.get(key)
+  if (cached) return cached
+  const total = count + 1
+  const columns = Math.ceil(Math.sqrt(total))
+  const rows = Math.ceil(total / columns)
+  const rowCounts = Array.from({ length: rows }, () => Math.floor(total / rows))
+  // Fill middle rows first, preferring the lower row when two are equally central.
+  const order = Array.from({ length: rows }, (_, index) => index)
+    .sort((a, b) => Math.abs(a - (rows - 1) / 2) - Math.abs(b - (rows - 1) / 2) || b - a)
+  for (let i = 0; i < total % rows; i++) rowCounts[order[i]]++
+  const positions = rowCounts.flatMap((rowCount, row) => Array.from({ length: rowCount }, (_, column) => ({
+    x: (column - (rowCount - 1) / 2) * (tile.width + 8),
+    y: (row - (rows - 1) / 2) * (tile.height + 4),
+  })))
+  const radius = Math.max(...positions.map(point => Math.hypot(Math.abs(point.x) + tile.width / 2, Math.abs(point.y) + tile.height / 2)))
+  const result = {
     tile,
-    pageSize,
-    diameter: layouts[Math.min(Math.max(0, siteCount), pageSize)].diameter,
-    // Last-page icons remain full size and centered, rather than stretching to fill the bubble.
-    positionsForPage: (count: number) => layouts[Math.min(Math.max(0, count), pageSize)].positions,
+    diameter: Math.max(150, Math.ceil(2 * (radius + 16))),
+    positions,
   }
+  if (cache.size >= 128) cache.delete(cache.keys().next().value!)
+  cache.set(key, result)
+  return result
 }

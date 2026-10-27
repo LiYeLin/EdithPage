@@ -73,16 +73,19 @@ function FloatHarness({
   )
 }
 
-function LiquidHarness({ enabled = true, ripple = true, punchBody = true }: {
+function LiquidHarness({ enabled = true, pressEnabled = true, ripple = true, punchBody = true }: {
   enabled?: boolean
+  pressEnabled?: boolean
   ripple?: boolean
   punchBody?: boolean
 }) {
-  const skinRef = useBubbleLiquid(enabled)
+  const skinRef = useBubbleLiquid(enabled, pressEnabled)
   const shell = (
     <div className="bubble-shell" data-testid="liquid-shell">
       {ripple && <span className="bubble-liquid-ripple" data-testid="liquid-ripple" />}
       <div ref={skinRef} className="bubble-liquid-skin" data-testid="liquid-skin" />
+      <button type="button" aria-label="删除站点"><svg><path data-testid="delete-path" /></svg></button>
+      <a href="https://example.com"><span data-testid="site-name">站点</span></a>
     </div>
   )
   return punchBody ? <div className="bubble-punch-body" data-testid="punch-body">{shell}</div> : shell
@@ -244,6 +247,38 @@ describe('useBubbleFloat 与 BubbleFloatProvider', () => {
 })
 
 describe('useBubbleLiquid', () => {
+  it('链接和按钮的子元素不会触发整体按压动画，空白区域保留反馈', () => {
+    const animate = vi.spyOn(HTMLElement.prototype, 'animate')
+    render(<LiquidHarness />)
+    for (const target of [screen.getByTestId('delete-path'), screen.getByTestId('site-name')]) {
+      target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, isPrimary: true, button: 0 }))
+    }
+    expect(animate).not.toHaveBeenCalled()
+    screen.getByTestId('liquid-shell').dispatchEvent(new PointerEvent('pointerdown', { isPrimary: true, button: 0 }))
+    expect(animate).toHaveBeenCalled()
+  })
+
+  it('进入编辑时取消已有按压动画；编辑中保留拖拽皮肤形变，退出后恢复按压反馈', () => {
+    const cancel = vi.fn()
+    const animate = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({ cancel } as unknown as Animation)
+    const view = render(<LiquidHarness />)
+    const shell = screen.getByTestId('liquid-shell')
+    const press = () => shell.dispatchEvent(new PointerEvent('pointerdown', { isPrimary: true, button: 0 }))
+    press()
+    expect(animate).toHaveBeenCalled()
+    view.rerender(<LiquidHarness pressEnabled={false} />)
+    expect(cancel).toHaveBeenCalled()
+    animate.mockClear()
+    press()
+    expect(animate).not.toHaveBeenCalled()
+    shell.dispatchEvent(new CustomEvent('liquid-contact', { detail: { amount: 1, direction: { x: 1, y: 0 } } }))
+    act(() => flushAnimationFrame(16))
+    expect(screen.getByTestId('liquid-skin').style.transform).toContain('translate(')
+    view.rerender(<LiquidHarness />)
+    press()
+    expect(animate).toHaveBeenCalled()
+  })
+
   it('disabled 时不安装交互效果，事件保持无副作用', () => {
     const animate = vi.spyOn(HTMLElement.prototype, 'animate')
     render(<LiquidHarness enabled={false} />)

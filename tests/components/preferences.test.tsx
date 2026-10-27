@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import { useContext } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreferencesProvider } from '../../src/i18n/PreferencesProvider'
@@ -10,6 +10,8 @@ import { SiteIcon } from '../../src/components/SiteIcon'
 import { SettingsDrawer } from '../../src/components/SettingsDrawer'
 import { defaultConfig } from '../../src/data/defaultConfig'
 import { createBackup, importBackup } from '../../src/platform/backup'
+import { usePersistentConfig } from '../../src/hooks/usePersistentConfig'
+import { templates } from '../../src/templates/registry'
 
 function Settings() {
   return <SettingsDrawer open activeModuleId={null} editingTarget={null} config={defaultConfig}
@@ -25,6 +27,31 @@ beforeEach(() => { localStorage.clear() })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('preferences and icons', () => {
+  it('loads English defaults but never translates saved user content; reset uses the current language', () => {
+    localStorage.setItem(PREFERENCES_KEY, '{"language":"en","iconService":"google"}')
+    const first = renderHook(() => usePersistentConfig(templates), { wrapper: PreferencesProvider })
+    expect(first.result.current.config.modules[0].title).toBe('AI Tools')
+    first.unmount()
+    const saved = structuredClone(defaultConfig)
+    saved.modules[0].title = '我的 AI 工具'
+    localStorage.setItem('edith-navigation-config-v3', JSON.stringify(saved))
+    const second = renderHook(() => usePersistentConfig(templates), { wrapper: PreferencesProvider })
+    expect(second.result.current.config.modules[0].title).toBe('我的 AI 工具')
+    act(() => second.result.current.resetConfig())
+    expect(second.result.current.config.modules[0].title).toBe('AI Tools')
+  })
+
+  it('shows a translated export error and clears it after a successful retry', () => {
+    localStorage.setItem(PREFERENCES_KEY, '{"language":"en","iconService":"google"}')
+    localStorage.setItem('edith-navigation-usage-v1', 'invalid')
+    render(<PreferencesProvider><SettingsDrawer open activeModuleId={null} editingTarget={null} config={defaultConfig}
+      onChange={() => {}} onClose={() => {}} onReset={() => {}} onExport={() => { createBackup() }} onImport={async () => {}} /></PreferencesProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Export', exact: true }))
+    expect(screen.getByRole('status')).toHaveTextContent('Your usage history is corrupted and cannot be exported.')
+    localStorage.removeItem('edith-navigation-usage-v1')
+    fireEvent.click(screen.getByRole('button', { name: 'Export', exact: true }))
+    expect(screen.queryByRole('status')).toBeNull()
+  })
   it('switches UI language without changing user content or icon service; refresh retains both', () => {
     const view = render(<PreferencesProvider><Settings /><SiteIcon url="https://example.org/private?token=secret" name="中文网站" /></PreferencesProvider>)
     const image = () => view.container.querySelector('.site-icon img')!

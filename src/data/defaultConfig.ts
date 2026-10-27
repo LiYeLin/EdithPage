@@ -1,4 +1,6 @@
 import type { NavigationConfig, SearchEngine } from '../types'
+import { english } from '../i18n/en.ts'
+import type { Locale } from '../i18n/preferences'
 
 export const searchEngines: SearchEngine[] = [
   {
@@ -82,4 +84,20 @@ export const defaultConfig: NavigationConfig = {
       ],
     },
   ],
+}
+
+// Localize only new presets. Saved names and descriptions are user content.
+export function getDefaultConfig(locale: Locale = 'zh-CN'): NavigationConfig {
+  const config = structuredClone(defaultConfig)
+  if (locale === 'en') {
+    for (const module of config.modules) {
+      module.title = english[module.title] ?? module.title
+      module.description = english[module.description] ?? module.description
+      for (const site of module.sites) {
+        site.name = english[site.name] ?? site.name
+        site.description = english[site.description] ?? site.description
+      }
+    }
+  }
+  return config
 }

@@ -9,6 +9,7 @@ import { browserDefaultSearch, submitSearch } from '../../src/platform/search'
 import { createBackup, importBackup } from '../../src/platform/backup'
 import { searchEngines } from '../../src/data/defaultConfig'
 import { installDomStubs } from './testEnvironment'
+import { PreferencesProvider } from '../../src/i18n/PreferencesProvider'
 
 const engineKey = 'edith-navigation-search-engine-v1'
 
@@ -111,6 +112,19 @@ describe('扩展搜索', () => {
     render(<OnboardingGuide step={2} onNext={onNext} onSkip={vi.fn()} />)
     expect(screen.getByText(/默认跟随浏览器的搜索设置/)).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '下一步' }))
+    expect(onNext).toHaveBeenCalledOnce()
+  })
+
+  it.each([1, 2, 3, 4] as const)('英文扩展引导第 %i 步完整翻译并使用正确结束按钮', step => {
+    localStorage.setItem('edith-navigation-preferences-v1', '{"language":"en","iconService":"google"}')
+    const onNext = vi.fn()
+    render(<PreferencesProvider><OnboardingGuide step={step} onNext={onNext} onSkip={vi.fn()} /></PreferencesProvider>)
+    expect(screen.getByRole('dialog', { name: 'Welcome tour' }).textContent).not.toMatch(/\p{Script=Han}/u)
+    if (step === 2) {
+      expect(screen.getByRole('heading', { name: 'Use your default search engine' })).toBeInTheDocument()
+      expect(screen.getByText('Search with your browser’s default engine. Use the icon to switch for this tab.')).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByRole('button', { name: step === 1 ? 'Get started' : step === 4 ? 'Done' : 'Next' }))
     expect(onNext).toHaveBeenCalledOnce()
   })
 })

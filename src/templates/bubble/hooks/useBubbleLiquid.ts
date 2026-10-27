@@ -6,8 +6,8 @@ import { springStep } from '../physics/liquid'
 const BUBBLE_SPEED = 1.44
 const BUBBLE_TRAVEL = 8 * 1.3
 
-/** Animate only the skin: hit boxes, pagination and readable icons stay stable. */
-export function useBubbleLiquid(enabled: boolean) {
+/** Keep drag deformation on the skin; whole-bubble press feedback is optional. */
+export function useBubbleLiquid(enabled: boolean, pressEnabled = true) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const skin = ref.current
@@ -71,6 +71,8 @@ export function useBubbleLiquid(enabled: boolean) {
 
     const punch = (event: PointerEvent) => {
       if (event.button !== 0 || !event.isPrimary) return
+      // Navigation and editing controls must stay under the pointer until release.
+      if (event.target instanceof Element && event.target.closest('a, button, input, select, textarea, [role="button"]')) return
       const rect = shell.getBoundingClientRect()
       const dx = rect.left + rect.width / 2 - event.clientX
       const dy = rect.top + rect.height / 2 - event.clientY
@@ -101,7 +103,7 @@ export function useBubbleLiquid(enabled: boolean) {
       previous = amount
       wake()
     }
-    shell.addEventListener('pointerdown', punch)
+    if (pressEnabled) shell.addEventListener('pointerdown', punch)
     shell.addEventListener('liquid-contact', contact)
     return () => {
       cancelAnimationFrame(frame)
@@ -120,6 +122,6 @@ export function useBubbleLiquid(enabled: boolean) {
       shell.removeEventListener('pointerdown', punch)
       shell.removeEventListener('liquid-contact', contact)
     }
-  }, [enabled])
+  }, [enabled, pressEnabled])
   return ref
 }

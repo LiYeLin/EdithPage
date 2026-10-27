@@ -14,7 +14,7 @@ type SettingsDrawerProps = {
   editingTarget: EditorTarget
   config: NavigationConfig
   onClose: () => void
-  onChange: (config: NavigationConfig) => void
+  onChange: (config: NavigationConfig) => string | void
   onReset: () => void
   onExport: () => void
   onImport: (file: File) => Promise<void>
@@ -59,6 +59,12 @@ export function SettingsDrawer({
   const [newModuleName, setNewModuleName] = useState('')
   const [moduleName, setModuleName] = useState(editingModule?.title ?? '')
   const [moduleAccent, setModuleAccent] = useState(editingModule?.accent ?? moduleAccentOptions[0])
+  const [capacityError, setCapacityError] = useState<string | null>(null)
+  const acceptChange = (next: NavigationConfig) => {
+    const error = onChange(next)
+    setCapacityError(error || null)
+    return !error
+  }
   const [transferStatus, setTransferStatus] = useState<string | null>(null)
   const importInput = useRef<HTMLInputElement>(null)
 
@@ -79,7 +85,7 @@ export function SettingsDrawer({
       }
       const originalModuleId = editingTarget.moduleId
 
-      onChange({
+      if (!acceptChange({
         ...config,
         modules: config.modules.map((module) => {
           if (originalModuleId === selectedModuleId && module.id === originalModuleId) {
@@ -96,12 +102,12 @@ export function SettingsDrawer({
           }
           return module
         }),
-      })
+      })) return
       onClose()
       return
     }
 
-    onChange({
+    if (!acceptChange({
       ...config,
       modules: config.modules.map((module) =>
         module.id === selectedModuleId
@@ -119,7 +125,7 @@ export function SettingsDrawer({
             }
           : module,
       ),
-    })
+    })) return
     setSiteName('')
     setSiteUrl('')
   }
@@ -128,7 +134,7 @@ export function SettingsDrawer({
     event.preventDefault()
     if (!editingModule || !moduleName.trim()) return
 
-    onChange({
+    if (!acceptChange({
       ...config,
       modules: config.modules.map((module) =>
         module.id === editingModule.id
@@ -139,7 +145,7 @@ export function SettingsDrawer({
             }
           : module,
       ),
-    })
+    })) return
     onClose()
   }
 
@@ -147,7 +153,7 @@ export function SettingsDrawer({
     const title = newModuleName.trim()
     if (!title) return
     const id = `module-${Date.now()}`
-    onChange({
+    if (!acceptChange({
       ...config,
       modules: [
         ...config.modules,
@@ -159,7 +165,7 @@ export function SettingsDrawer({
           sites: [],
         },
       ],
-    })
+    })) return
     setSelectedModuleId(id)
     setNewModuleName('')
   }
@@ -175,6 +181,15 @@ export function SettingsDrawer({
       setTransferStatus('导入成功，正在重新载入。')
     } catch (error) {
       setTransferStatus(error instanceof Error ? error.message : '导入失败，请检查备份文件。')
+    }
+  }
+
+  const handleExport = () => {
+    try {
+      onExport()
+      setTransferStatus(null)
+    } catch (error) {
+      setTransferStatus(error instanceof Error ? error.message : '导出失败，请重试。')
     }
   }
 
@@ -205,6 +220,7 @@ export function SettingsDrawer({
         </div>
 
         <div className="drawer-scroll">
+          {capacityError && <p className="capacity-form-error" role="alert">{t(capacityError)}</p>}
           {isEditingModule ? (
             <form className="edit-form" onSubmit={saveModule}>
               <section className="settings-section">
@@ -320,7 +336,7 @@ export function SettingsDrawer({
                     <span className="settings-label">{t("数据迁移")}</span>
                     <p className="settings-help">{t("通过 JSON 文件在网页版、Chrome 和 Edge 之间迁移配置。")}</p>
                     <div className="data-transfer-actions">
-                      <button type="button" onClick={onExport}><Download size={15} />{t("导出")}</button>
+                      <button type="button" onClick={handleExport}><Download size={15} />{t("导出")}</button>
                       <button type="button" onClick={() => importInput.current?.click()}><Upload size={15} />{t("导入")}</button>
                     </div>
                     <input

@@ -2,6 +2,8 @@ import type { ComponentType } from 'react'
 import type { EditorTarget, FrequentSiteItem, IconPosition, IconPositionPersistence, Module } from '../types'
 import type { SiteMove } from '../utils/moveSite'
 
+export type CapacityValidator = (modules: readonly Module[]) => string | null
+
 export type TemplateInteractionState = { dragging: boolean; settling: boolean }
 
 export type TemplateAppearance = {
@@ -29,6 +31,7 @@ export type NavigationTemplateProps = {
   revealSite: { moduleId: string; siteId: string } | null
   actions: NavigationActions
   iconPositionPersistence?: IconPositionPersistence
+  onCapacityValidatorChange?: (validator: CapacityValidator | null) => void
   onInteractionStateChange: (state: TemplateInteractionState) => void
 }
 

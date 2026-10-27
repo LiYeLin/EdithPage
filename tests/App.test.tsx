@@ -46,6 +46,8 @@ const fixtureConfig: NavigationConfig = {
   ],
 }
 
+let capacityResult: string | null = null
+
 type ProbeProps = NavigationTemplateProps & { label: string }
 
 function ProbeTemplate({
@@ -57,7 +59,12 @@ function ProbeTemplate({
   revealSite,
   actions,
   onInteractionStateChange,
+  onCapacityValidatorChange,
 }: ProbeProps) {
+  useEffect(() => {
+    onCapacityValidatorChange?.(() => capacityResult)
+    return () => onCapacityValidatorChange?.(null)
+  }, [onCapacityValidatorChange])
   const [localCount, setLocalCount] = useState(0)
   const [moveResult, setMoveResult] = useState('尚未移动')
   const [invalidMoveResult, setInvalidMoveResult] = useState('尚未校验')
@@ -211,6 +218,7 @@ function clickUndoTwiceInOneBatch() {
 }
 
 beforeEach(() => {
+  capacityResult = null
   localStorage.clear()
   document.body.className = ''
   vi.restoreAllMocks()
@@ -712,7 +720,7 @@ describe('App 搜索、引导与存储错误', () => {
       fireEvent.click(screen.getByRole('button', { name: '开始使用' }))
       fireEvent.click(screen.getByRole('button', { name: '下一步' }))
       fireEvent.click(screen.getByRole('button', { name: '下一步' }))
-      fireEvent.click(screen.getByRole('button', { name: '下一步' }))
+      fireEvent.click(screen.getByRole('button', { name: '完成' }))
     }
 
     expect(screen.queryByRole('dialog', { name: '首次访问引导' })).toBeNull()
@@ -862,5 +870,46 @@ describe('App 图标位置动作边界', () => {
     })
     expect(screen.queryByRole('dialog', { name: '选择模板' })).toBeNull()
     expect(screen.getByRole('complementary')).toBeTruthy()
+  })
+})
+
+
+describe('App 气泡容量校验', () => {
+  it('拒绝新增时保留分组名和网址输入；恢复容量后可重新提交', async () => {
+    await renderApp()
+    capacityResult = '当前窗口空间不足，请减少内容或扩大窗口。'
+    fireEvent.click(screen.getByRole('button', { name: '打开设置' }))
+    const name = screen.getByPlaceholderText('例如：设计灵感') as HTMLInputElement
+    fireEvent.change(name, { target: { value: '新分类' } })
+    fireEvent.click(screen.getByRole('button', { name: '新建分类' }))
+    expect(name.value).toBe('新分类')
+    expect(screen.queryByRole('heading', { name: '新分类' })).toBeNull()
+    fireEvent.change(screen.getByPlaceholderText('站点名称'), { target: { value: '新站点' } })
+    fireEvent.change(screen.getByPlaceholderText('https://example.com'), { target: { value: 'example.org' } })
+    fireEvent.click(screen.getByRole('button', { name: '添加到「分类一」' }))
+    expect((screen.getByPlaceholderText('站点名称') as HTMLInputElement).value).toBe('新站点')
+    expect(siteNames('分类一')).toEqual(['Alpha', 'Beta', 'Gamma'])
+    capacityResult = null
+    fireEvent.click(screen.getByRole('button', { name: '添加到「分类一」' }))
+    expect(siteNames('分类一')).toContain('新站点')
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('容量不足拒绝移动，不设置定位或撤销，仍可删除与编辑名称', async () => {
+    await renderApp()
+    capacityResult = '当前窗口空间不足，请减少内容或扩大窗口。'
+    enterEditing()
+    fireEvent.click(screen.getByRole('button', { name: '移动 Beta 到分类二首位' }))
+    expect(screen.getByLabelText('移动结果').textContent).toBe('首次 false，重复 false')
+    expect(siteNames('分类一')).toEqual(['Alpha', 'Beta', 'Gamma'])
+    expect(screen.queryByRole('button', { name: '撤销' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '编辑 Alpha' }))
+    fireEvent.change(screen.getByPlaceholderText('站点名称'), { target: { value: '改名' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存站点' }))
+    expect(siteNames('分类一')).toEqual(['改名', 'Beta', 'Gamma'])
+    fireEvent.click(screen.getByRole('button', { name: '删除 Beta' }))
+    expect(siteNames('分类一')).toEqual(['改名', 'Gamma'])
+    fireEvent.click(screen.getByRole('button', { name: '撤销' }))
+    expect(siteNames('分类一')).toEqual(['改名', 'Beta', 'Gamma'])
   })
 })

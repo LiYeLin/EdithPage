@@ -33,7 +33,7 @@
 
 ## 各模板实现
 
-- **气泡**：D3 `packSiblings` / `packEnclose` 计算图标排布和边界；Motion 负责布局动画；专用漂浮/液态逻辑负责气泡响应；dnd-kit 负责拖放输入与命中；`liquid-gooey@0.2.1` 负责水滴轮廓。文字和图标位于 SVG 滤镜之外。
+- **气泡**：站点按居中的行排列并预留添加位置，按内容计算气泡边界；工作区使用 D3 和按行候选计算分组位置。Motion 负责布局动画；专用漂浮/液态逻辑负责气泡响应；dnd-kit 负责拖放输入与命中；`liquid-gooey@0.2.1` 负责水滴轮廓。文字和图标位于 SVG 滤镜之外。
 - **物理图标**：`MatterTemplate.tsx` 内建立 Matter.js 世界、边界和刚体，将物体位置同步到 DOM 图标，使用 Pointer Events 拖动；支持独立的位置快照。
 - **北京地标**：`assets.ts` 加载本地展示/碰撞 SVG，`terrain.ts` 使用 poly-decomp 分解凹多边形并适配视口，`scene.ts` 管理 Matter 世界，`drag.ts` 管理输入。静态列表承担加载失败和减少动态回退。
 - **纯净网格**：普通 React/CSS 图标网格，复用公共站点动作，不依赖气泡 DOM 或物理会话。

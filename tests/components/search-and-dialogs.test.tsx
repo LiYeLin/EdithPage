@@ -173,7 +173,7 @@ describe('OnboardingGuide', () => {
     [1, '欢迎使用 Edith', '开始使用'],
     [2, '切换搜索引擎', '下一步'],
     [3, '选择你的模板', '下一步'],
-    [4, '进入编辑模式', '下一步'],
+    [4, '进入编辑模式', '完成'],
   ] as const)('第 %i 步展示正确内容和进度', (step, title, nextLabel) => {
     const onNext = vi.fn()
     const onSkip = vi.fn()

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { browserLocale, parsePreferences } from '../src/i18n/preferences'
+import { defaultConfig, getDefaultConfig } from '../src/data/defaultConfig'
 
 describe('language and icon service defaults', () => {
   it.each(['zh', 'zh-CN', 'zh-SG', 'zh-Hans', 'zh-Hans-CN'])('%s defaults to the domestic service', language => {
@@ -19,6 +20,13 @@ describe('language and icon service defaults', () => {
 
 // Translated strings must retain every interpolation token used by the source.
 describe('translation messages', () => {
+  it('provides fully English presets without mutating the Chinese defaults', () => {
+    const englishConfig = getDefaultConfig('en')
+    expect(englishConfig.modules.map(module => module.title)).toEqual(['AI Tools', 'AI Learning', 'Developer Tools', 'Tech Communities'])
+    expect(JSON.stringify(englishConfig)).not.toMatch(/\p{Script=Han}/u)
+    expect(defaultConfig.modules[0].title).toBe('AI 工具')
+    expect(getDefaultConfig('zh-CN')).toEqual(defaultConfig)
+  })
   it('keeps dynamic names and counts in every English translation', async () => {
     const { english } = await import('../src/i18n/en')
     for (const [source, translation] of Object.entries(english)) {

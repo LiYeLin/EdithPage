@@ -1,6 +1,6 @@
 import { useTranslation } from './i18n/useTranslation'
 import { PreferencesProvider } from './i18n/PreferencesProvider'
-import type { TemplateDefinition, TemplateInteractionState } from './templates/types'
+import type { CapacityValidator, TemplateDefinition, TemplateInteractionState } from './templates/types'
 import { templates as productionTemplates } from './templates/registry'
 import { canSwitchTemplate, getIconPositionPersistence, getTemplateAppearance, normalizeIconPositions, selectTemplate } from './templates/config'
 import { TemplateHost } from './templates/TemplateHost'
@@ -13,7 +13,7 @@ import { SearchDeck } from './components/SearchDeck'
 import { SettingsDrawer } from './components/SettingsDrawer'
 import { useSearchSelection } from './hooks/useSearchSelection'
 import { usePersistentConfig } from './hooks/usePersistentConfig'
-import type { EditorTarget, IconPosition, Module, Site } from './types'
+import type { EditorTarget, IconPosition, Module, NavigationConfig, Site } from './types'
 import { moveSite, type SiteMove } from './utils/moveSite'
 import { createBackup, importBackup } from './platform/backup'
 import { getStoredValue, setStoredValue, subscribeStoredValue, type StorageKey } from './platform/storage'
@@ -82,6 +82,25 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   const [usageCounts, setUsageCounts] = useState<Record<string, number>>(loadUsageCounts)
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null)
   const undoPointerRef = useRef<number | null>(null)
+  const capacityValidator = useRef<CapacityValidator | null>(null)
+  const [capacityError, setCapacityError] = useState<string | null>(null)
+  const reportCapacityValidator = useCallback((validator: CapacityValidator | null) => { capacityValidator.current = validator }, [])
+  const capacityCheck = (current: NavigationConfig, next: NavigationConfig) => {
+    if (selection.active?.definition.id !== 'bubble') return null
+    const increasesGroup = next.modules.some(module => {
+      const old = current.modules.find(entry => entry.id === module.id)
+      return !old || module.sites.length > old.sites.length
+    })
+    if (!increasesGroup) return null
+    if (!capacityValidator.current) return '正在测量可用空间，请稍后再试。'
+    return capacityValidator.current(next.modules)
+  }
+  const changeSettings = (next: NavigationConfig) => {
+    const error = capacityCheck(config, next)
+    if (error) return error
+    setCapacityError(null)
+    setConfig(next)
+  }
   const undoTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -197,6 +216,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
     void selection.load(id, (loaded) => {
       // Repeat the guard at commit time; disabled controls alone do not serialize events.
       if (!pickerOpenRef.current || !canSwitchTemplate(interactionRef.current)) return
+      setCapacityError(null)
       setConfig(current => selectTemplate(current, loaded.definition.id))
       setEditing(false)
       setRevealSite(null)
@@ -212,6 +232,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
   }
 
   const openGeneralSettings = () => {
+    setCapacityError(null)
     setActiveModuleId(null)
     setEditingTarget(null)
     if (pickerOpenRef.current) closePicker()
@@ -253,6 +274,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
     const index = module?.sites.findIndex((site) => site.id === siteId) ?? -1
     const site = index >= 0 ? module?.sites[index] : null
     if (!site) return
+    setCapacityError(null)
 
     setConfig({
       ...config,
@@ -267,6 +289,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
     const index = config.modules.findIndex((module) => module.id === moduleId)
     if (index < 0) return
     const module = config.modules[index]
+    setCapacityError(null)
 
     setConfig({ ...config, modules: config.modules.filter((item) => item.id !== moduleId) })
     queueUndo({
@@ -282,6 +305,9 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
     setConfig(current => {
       const next = moveSite(current, move)
       if (next === current) return current
+      const error = capacityCheck(current, next)
+      if (error) { setCapacityError(error); return current }
+      setCapacityError(null)
       const source = current.modules.find(module => module.id === move.fromModuleId)!
       const originalIndex = source.sites.findIndex(site => site.id === move.siteId)
       const target = next.modules.find(module => module.id === move.toModuleId)!
@@ -394,6 +420,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
       }}
       onClickCapture={preventDragClick}
       data-accent="mint"
+      data-active-template={selection.active?.definition.id}
       style={{
         '--app-background-image': `url("${appearance.backgroundImage}")`,
         '--app-background-position': appearance.backgroundPosition,
@@ -438,6 +465,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
 
         <TemplateHost active={selection.active} error={selection.error} retry={selection.retryInitial} modules={config.modules} frequentSites={frequentSites} editing={editing}
           interactionBlocked={settingsOpen || pickerOpen || selection.loading} revealSite={revealSite} iconPositionPersistence={iconPositionPersistence}
+          onCapacityValidatorChange={reportCapacityValidator}
           onInteractionStateChange={handleInteractionStateChange}
           actions={{ enterEditMode, openSettings: openGeneralSettings, addSite: openAddSite,
             edit: (target) => target.type === 'site' ? openEditSite(target.moduleId, target.siteId) : openEditModule(target.moduleId),
@@ -467,6 +495,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
         <div data-editing-interactive className="editing-toast"><span /> {t(selection.active?.definition.editingHint ?? '')}</div>
       )}
 
+      {capacityError && <div className="capacity-error" role="alert">{t(capacityError)}</div>}
       {storageError && <div className="storage-error" role="alert">{t(storageError)}</div>}
       {pickerOpen && <TemplatePicker templates={templates} currentId={config.templateId} loading={selection.loading}
         busy={!canSwitchTemplate(interaction)} error={selection.error} onSelect={chooseTemplate} onClose={closePicker} />}
@@ -477,7 +506,7 @@ function App({ templates = productionTemplates }: { templates?: readonly Templat
         editingTarget={editingTarget}
         config={config}
         onClose={closeSettings}
-        onChange={setConfig}
+        onChange={changeSettings}
         onReset={resetConfig}
         onExport={exportSettings}
         onImport={importSettings}
